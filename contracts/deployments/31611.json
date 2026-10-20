@@ -1,17 +1,18 @@
 {
   "admin": "0x5C601923FE736A2dcA69D892c10720fb584dd1e4",
-  "block": 16260385,
+  "block": 16261540,
   "chainId": 31611,
-  "gauge": "0x2CFd9144D4789FF20c0996e8AB3035cAC2f4825c",
-  "irmBold": "0x50C1fECCF04E85Fae4eb02b29309201F1B5e2085",
-  "irmSteady": "0x816dbB41CfD0371B7a68a86b99BD84b9252137d4",
+  "gauge": "0x67e8De42E32000B703Cf95c05009eE757F325b11",
+  "irmBold": "0x3482E42af82B46fE9e0547A48178f2f8C8206e6A",
+  "irmSteady": "0x1B59cBde8CD6DFACE0E5CbDcBFC4EFB17aBc7625",
+  "liquidator": "0xeA16eD793d165AFD1791a0f83668bf65735ED597",
   "mezo": "0x7B7c000000000000000000000000000000000001",
-  "morpho": "0xb62a0458dC292c022A05EDcc304CD3300a33DbE5",
+  "morpho": "0xC6db4999d8428b259FD198A88d2B8E6494045A48",
   "musd": "0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503",
-  "oracle": "0x3040b46D1E04d3248e8D5217F65cD875cb25511c",
-  "vaultBold": "0xE63760ef37aCb3582fc3E54CB4091a421BFf092b",
-  "vaultSteady": "0xb027B495A82376dBef620DFb901DC392D75A6cdD",
+  "oracle": "0xE9a83636AcBf75eBf3b20497B8126624D4378cc5",
+  "vaultBold": "0x49C8a8d5106B2878679d10EAEA71D0e6793bd7D7",
+  "vaultSteady": "0x8f89117d71269E35D980905327e4C1252294B4a9",
   "veBTC": "0xB63fcCd03521Cf21907627bd7fA465C129479231",
-  "liquidator": "0xF07C60aA6DE6066fCF92fA41EfAde13ff97415b1",
-  "liquidatorTx": "0xef63d5c969eb14a160fd9ab3b3cfb30a155a4d8858f3da340f5bee6f8645dece"
+  "version": "v2",
+  "note": "Addresses reconstructed from deployer nonces 64-74 and on-chain bytecode after an RPC receipt failure; verified by script/verify_deploy.py"
 }

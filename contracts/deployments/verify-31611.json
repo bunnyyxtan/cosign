@@ -1,0 +1,281 @@
+{
+  "deployment": {
+    "admin": "0x5C601923FE736A2dcA69D892c10720fb584dd1e4",
+    "block": 16261540,
+    "chainId": 31611,
+    "gauge": "0x67e8De42E32000B703Cf95c05009eE757F325b11",
+    "irmBold": "0x3482E42af82B46fE9e0547A48178f2f8C8206e6A",
+    "irmSteady": "0x1B59cBde8CD6DFACE0E5CbDcBFC4EFB17aBc7625",
+    "liquidator": "0xeA16eD793d165AFD1791a0f83668bf65735ED597",
+    "mezo": "0x7B7c000000000000000000000000000000000001",
+    "morpho": "0xC6db4999d8428b259FD198A88d2B8E6494045A48",
+    "musd": "0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503",
+    "oracle": "0xE9a83636AcBf75eBf3b20497B8126624D4378cc5",
+    "vaultBold": "0x49C8a8d5106B2878679d10EAEA71D0e6793bd7D7",
+    "vaultSteady": "0x8f89117d71269E35D980905327e4C1252294B4a9",
+    "veBTC": "0xB63fcCd03521Cf21907627bd7fA465C129479231",
+    "version": "v2",
+    "note": "Addresses reconstructed from deployer nonces 64-74 and on-chain bytecode after an RPC receipt failure; verified by script/verify_deploy.py"
+  },
+  "checks": [
+    {
+      "check": "morpho has code",
+      "pass": true,
+      "got": "True",
+      "want": "True"
+    },
+    {
+      "check": "oracle has code",
+      "pass": true,
+      "got": "True",
+      "want": "True"
+    },
+    {
+      "check": "gauge has code",
+      "pass": true,
+      "got": "True",
+      "want": "True"
+    },
+    {
+      "check": "vaultBold has code",
+      "pass": true,
+      "got": "True",
+      "want": "True"
+    },
+    {
+      "check": "vaultSteady has code",
+      "pass": true,
+      "got": "True",
+      "want": "True"
+    },
+    {
+      "check": "irmBold has code",
+      "pass": true,
+      "got": "True",
+      "want": "True"
+    },
+    {
+      "check": "irmSteady has code",
+      "pass": true,
+      "got": "True",
+      "want": "True"
+    },
+    {
+      "check": "liquidator has code",
+      "pass": true,
+      "got": "True",
+      "want": "True"
+    },
+    {
+      "check": "Morpho owner is the deployer",
+      "pass": true,
+      "got": "0x5C601923FE736A2dcA69D892c10720fb584dd1e4",
+      "want": "0x5C601923FE736A2dcA69D892c10720fb584dd1e4"
+    },
+    {
+      "check": "Demo oracle owner is the deployer",
+      "pass": true,
+      "got": "0x5C601923FE736A2dcA69D892c10720fb584dd1e4",
+      "want": "0x5C601923FE736A2dcA69D892c10720fb584dd1e4"
+    },
+    {
+      "check": "Demo oracle price is 10 MUSD/MEZO",
+      "pass": true,
+      "got": "10000000000000000000000000000000000000",
+      "want": "10000000000000000000000000000000000000"
+    },
+    {
+      "check": "Gauge reads Mezo testnet veBTC",
+      "pass": true,
+      "got": "0xB63fcCd03521Cf21907627bd7fA465C129479231",
+      "want": "0xB63fcCd03521Cf21907627bd7fA465C129479231"
+    },
+    {
+      "check": "Gauge pays MEZO",
+      "pass": true,
+      "got": "0x7B7c000000000000000000000000000000000001",
+      "want": "0x7B7c000000000000000000000000000000000001"
+    },
+    {
+      "check": "Gauge epoch is 10 minutes",
+      "pass": true,
+      "got": "600",
+      "want": "600"
+    },
+    {
+      "check": "Gauge has v2 poke support (votedPower readable)",
+      "pass": true,
+      "got": "True",
+      "want": "True"
+    },
+    {
+      "check": "Gauge has 2 vaults",
+      "pass": true,
+      "got": "2",
+      "want": "2"
+    },
+    {
+      "check": "Liquidator points at our Morpho",
+      "pass": true,
+      "got": "0xC6db4999d8428b259FD198A88d2B8E6494045A48",
+      "want": "0xC6db4999d8428b259FD198A88d2B8E6494045A48"
+    },
+    {
+      "check": "vaultBold name",
+      "pass": true,
+      "got": "Bold MEZO",
+      "want": "Bold MEZO"
+    },
+    {
+      "check": "vaultBold LLTV",
+      "pass": true,
+      "got": "770000000000000000",
+      "want": "770000000000000000"
+    },
+    {
+      "check": "vaultBold max leverage",
+      "pass": true,
+      "got": "19",
+      "want": "19"
+    },
+    {
+      "check": "vaultBold premium bps",
+      "pass": true,
+      "got": "2500",
+      "want": "2500"
+    },
+    {
+      "check": "vaultBold uses the recorded IRM",
+      "pass": true,
+      "got": "0x3482E42af82B46fE9e0547A48178f2f8C8206e6A",
+      "want": "0x3482E42af82B46fE9e0547A48178f2f8C8206e6A"
+    },
+    {
+      "check": "vaultBold IRM APR",
+      "pass": true,
+      "got": "120000000000000000",
+      "want": "120000000000000000"
+    },
+    {
+      "check": "vaultBold morpho",
+      "pass": true,
+      "got": "0xC6db4999d8428b259FD198A88d2B8E6494045A48",
+      "want": "0xC6db4999d8428b259FD198A88d2B8E6494045A48"
+    },
+    {
+      "check": "vaultBold oracle",
+      "pass": true,
+      "got": "0xE9a83636AcBf75eBf3b20497B8126624D4378cc5",
+      "want": "0xE9a83636AcBf75eBf3b20497B8126624D4378cc5"
+    },
+    {
+      "check": "vaultBold loan token is MUSD",
+      "pass": true,
+      "got": "0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503",
+      "want": "0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503"
+    },
+    {
+      "check": "vaultBold collateral is MEZO",
+      "pass": true,
+      "got": "0x7B7c000000000000000000000000000000000001",
+      "want": "0x7B7c000000000000000000000000000000000001"
+    },
+    {
+      "check": "vaultBold gauge",
+      "pass": true,
+      "got": "0x67e8De42E32000B703Cf95c05009eE757F325b11",
+      "want": "0x67e8De42E32000B703Cf95c05009eE757F325b11"
+    },
+    {
+      "check": "vaultBold registered in gauge (capRate 1e13)",
+      "pass": true,
+      "got": "10000000000000",
+      "want": "10000000000000"
+    },
+    {
+      "check": "vaultBold Morpho market exists",
+      "pass": true,
+      "got": "True",
+      "want": "True"
+    },
+    {
+      "check": "vaultSteady name",
+      "pass": true,
+      "got": "Steady MEZO",
+      "want": "Steady MEZO"
+    },
+    {
+      "check": "vaultSteady LLTV",
+      "pass": true,
+      "got": "625000000000000000",
+      "want": "625000000000000000"
+    },
+    {
+      "check": "vaultSteady max leverage",
+      "pass": true,
+      "got": "9",
+      "want": "9"
+    },
+    {
+      "check": "vaultSteady premium bps",
+      "pass": true,
+      "got": "2000",
+      "want": "2000"
+    },
+    {
+      "check": "vaultSteady uses the recorded IRM",
+      "pass": true,
+      "got": "0x1B59cBde8CD6DFACE0E5CbDcBFC4EFB17aBc7625",
+      "want": "0x1B59cBde8CD6DFACE0E5CbDcBFC4EFB17aBc7625"
+    },
+    {
+      "check": "vaultSteady IRM APR",
+      "pass": true,
+      "got": "80000000000000000",
+      "want": "80000000000000000"
+    },
+    {
+      "check": "vaultSteady morpho",
+      "pass": true,
+      "got": "0xC6db4999d8428b259FD198A88d2B8E6494045A48",
+      "want": "0xC6db4999d8428b259FD198A88d2B8E6494045A48"
+    },
+    {
+      "check": "vaultSteady oracle",
+      "pass": true,
+      "got": "0xE9a83636AcBf75eBf3b20497B8126624D4378cc5",
+      "want": "0xE9a83636AcBf75eBf3b20497B8126624D4378cc5"
+    },
+    {
+      "check": "vaultSteady loan token is MUSD",
+      "pass": true,
+      "got": "0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503",
+      "want": "0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503"
+    },
+    {
+      "check": "vaultSteady collateral is MEZO",
+      "pass": true,
+      "got": "0x7B7c000000000000000000000000000000000001",
+      "want": "0x7B7c000000000000000000000000000000000001"
+    },
+    {
+      "check": "vaultSteady gauge",
+      "pass": true,
+      "got": "0x67e8De42E32000B703Cf95c05009eE757F325b11",
+      "want": "0x67e8De42E32000B703Cf95c05009eE757F325b11"
+    },
+    {
+      "check": "vaultSteady registered in gauge (capRate 1e13)",
+      "pass": true,
+      "got": "10000000000000",
+      "want": "10000000000000"
+    },
+    {
+      "check": "vaultSteady Morpho market exists",
+      "pass": true,
+      "got": "True",
+      "want": "True"
+    }
+  ],
+  "time": 1792497228
+}

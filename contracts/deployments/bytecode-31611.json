@@ -1,0 +1,42 @@
+{
+  "morpho": {
+    "address": "0xC6db4999d8428b259FD198A88d2B8E6494045A48",
+    "match": true,
+    "bytes": 16902
+  },
+  "oracle": {
+    "address": "0xE9a83636AcBf75eBf3b20497B8126624D4378cc5",
+    "match": true,
+    "bytes": 671
+  },
+  "gauge": {
+    "address": "0x67e8De42E32000B703Cf95c05009eE757F325b11",
+    "match": true,
+    "bytes": 7710
+  },
+  "vaultBold": {
+    "address": "0x49C8a8d5106B2878679d10EAEA71D0e6793bd7D7",
+    "match": true,
+    "bytes": 12531
+  },
+  "vaultSteady": {
+    "address": "0x8f89117d71269E35D980905327e4C1252294B4a9",
+    "match": true,
+    "bytes": 12531
+  },
+  "irmBold": {
+    "address": "0x3482E42af82B46fE9e0547A48178f2f8C8206e6A",
+    "match": true,
+    "bytes": 705
+  },
+  "irmSteady": {
+    "address": "0x1B59cBde8CD6DFACE0E5CbDcBFC4EFB17aBc7625",
+    "match": true,
+    "bytes": 705
+  },
+  "liquidator": {
+    "address": "0xeA16eD793d165AFD1791a0f83668bf65735ED597",
+    "match": true,
+    "bytes": 2269
+  }
+}

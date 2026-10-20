@@ -1,0 +1,181 @@
+{
+  "steps": [
+    {
+      "label": "v1: lender withdraws all senior (Bold)",
+      "actor": "lender",
+      "tx": "0x2726ca75e56ef7f476f28dd7df3554b814edc249cbf76a80afda884d974c6790",
+      "url": "https://explorer.test.mezo.org/tx/0x2726ca75e56ef7f476f28dd7df3554b814edc249cbf76a80afda884d974c6790",
+      "block": 16261357,
+      "time": 1792495226
+    },
+    {
+      "label": "v1: lender claims MEZO (Bold)",
+      "actor": "lender",
+      "tx": "0x17ee7721137b054f84d9c530e437a17b50ce1dbdf2f043b4020df6eecba67cb3",
+      "url": "https://explorer.test.mezo.org/tx/0x17ee7721137b054f84d9c530e437a17b50ce1dbdf2f043b4020df6eecba67cb3",
+      "block": 16261359,
+      "time": 1792495232
+    },
+    {
+      "label": "v1: cosigner claims MEZO (Bold)",
+      "actor": "cosigner",
+      "tx": "0x196e5ce57a73e93da93f76b8c9d811a5795375aa8a272e8c5619f502af718137",
+      "url": "https://explorer.test.mezo.org/tx/0x196e5ce57a73e93da93f76b8c9d811a5795375aa8a272e8c5619f502af718137",
+      "block": 16261360,
+      "time": 1792495244
+    },
+    {
+      "label": "v1: lender withdraws all senior (Steady)",
+      "actor": "lender",
+      "tx": "0x1338cae29bc20f0ea94c03c05afe73c318514dd81e10985b4ac1a73b1cfbbdd3",
+      "url": "https://explorer.test.mezo.org/tx/0x1338cae29bc20f0ea94c03c05afe73c318514dd81e10985b4ac1a73b1cfbbdd3",
+      "block": 16261363,
+      "time": 1792495255
+    },
+    {
+      "label": "v1: lender claims MEZO (Steady)",
+      "actor": "lender",
+      "tx": "0x702a5f900d055e422275de8cd3a2b91e4accfe3f6b00dd0c381ab653bb134b9b",
+      "url": "https://explorer.test.mezo.org/tx/0x702a5f900d055e422275de8cd3a2b91e4accfe3f6b00dd0c381ab653bb134b9b",
+      "block": 16261365,
+      "time": 1792495264
+    },
+    {
+      "label": "v1: cosigner claims MEZO (Steady)",
+      "actor": "cosigner",
+      "tx": "0x732831eb7b1c5e12c44854f84c23e5d4311d41dd8f07654be4d6df425076f2ab",
+      "url": "https://explorer.test.mezo.org/tx/0x732831eb7b1c5e12c44854f84c23e5d4311d41dd8f07654be4d6df425076f2ab",
+      "block": 16261367,
+      "time": 1792495273
+    },
+    {
+      "label": "v1: borrower approves MUSD for Morpho",
+      "actor": "borrower",
+      "tx": "0xa2615d8070073d14aa67e39b3d85af5d42594affbb4f565d3646161c83e59ccd",
+      "url": "https://explorer.test.mezo.org/tx/0xa2615d8070073d14aa67e39b3d85af5d42594affbb4f565d3646161c83e59ccd",
+      "block": 16261369,
+      "time": 1792495285
+    },
+    {
+      "label": "v1: borrower repays all debt (Steady)",
+      "actor": "borrower",
+      "tx": "0x723e3714c4cf8d3d55664fbee9585726b63faed1f5ee9f7db629041fb2464fba",
+      "url": "https://explorer.test.mezo.org/tx/0x723e3714c4cf8d3d55664fbee9585726b63faed1f5ee9f7db629041fb2464fba",
+      "block": 16261371,
+      "time": 1792495296
+    },
+    {
+      "label": "v1: borrower withdraws MEZO collateral (Steady)",
+      "actor": "borrower",
+      "tx": "0x53d21d3764c41936c960d3d9d1bb347803e8f90d19925814b32611014b2e6547",
+      "url": "https://explorer.test.mezo.org/tx/0x53d21d3764c41936c960d3d9d1bb347803e8f90d19925814b32611014b2e6547",
+      "block": 16261374,
+      "time": 1792495308
+    },
+    {
+      "label": "v1: co-signer removes veBTC votes",
+      "actor": "cosigner",
+      "tx": "0x0fbd20e443ff3f600e26ec6c8df3eda76095a8a0abbc32701c87bb2756a5ac43",
+      "url": "https://explorer.test.mezo.org/tx/0x0fbd20e443ff3f600e26ec6c8df3eda76095a8a0abbc32701c87bb2756a5ac43",
+      "block": 16261376,
+      "time": 1792495316
+    },
+    {
+      "label": "v1: co-signer requests to withdraw all cover (Bold)",
+      "actor": "cosigner",
+      "tx": "0x2001f10666743aef1426a0b45fd08d7798171b01e0d6af55890b4df784257ca3",
+      "url": "https://explorer.test.mezo.org/tx/0x2001f10666743aef1426a0b45fd08d7798171b01e0d6af55890b4df784257ca3",
+      "block": 16261377,
+      "time": 1792495328
+    },
+    {
+      "label": "v1: co-signer requests to withdraw all cover (Steady)",
+      "actor": "cosigner",
+      "tx": "0x8b96643f5a992aadd9309d986c990b0718c1e8d72a30689cab975297f4634cdb",
+      "url": "https://explorer.test.mezo.org/tx/0x8b96643f5a992aadd9309d986c990b0718c1e8d72a30689cab975297f4634cdb",
+      "block": 16261380,
+      "time": 1792495339
+    },
+    {
+      "label": "v1: co-signer requests all cover but dust (Bold)",
+      "actor": "cosigner",
+      "tx": "0x41a77ada638a978a7684b5ef84a60176128efc28ecac0e384ee3084b731aed16",
+      "url": "https://explorer.test.mezo.org/tx/0x41a77ada638a978a7684b5ef84a60176128efc28ecac0e384ee3084b731aed16",
+      "block": 16261531,
+      "time": 1792496061
+    },
+    {
+      "label": "v1: co-signer requests all cover but dust (Steady)",
+      "actor": "cosigner",
+      "tx": "0x9a6896221fa549182e180d1682b910adedaeaf2308cfbc8e0be4631dc76c6e31",
+      "url": "https://explorer.test.mezo.org/tx/0x9a6896221fa549182e180d1682b910adedaeaf2308cfbc8e0be4631dc76c6e31",
+      "block": 16261533,
+      "time": 1792496067
+    },
+    {
+      "label": "v1: co-signer withdraws cover (Bold)",
+      "actor": "cosigner",
+      "tx": "0x0f58e95dd76c2a0b284a6c1f3f57726909be821503128259d9a70256cd43d4fc",
+      "url": "https://explorer.test.mezo.org/tx/0x0f58e95dd76c2a0b284a6c1f3f57726909be821503128259d9a70256cd43d4fc",
+      "block": 16261712,
+      "time": 1792496925
+    },
+    {
+      "label": "v1: co-signer withdraws cover (Steady)",
+      "actor": "cosigner",
+      "tx": "0xa8294ca7649a4b8f2079cbad3093dbc882875e28252f42d51e8cdfe8d9781568",
+      "url": "https://explorer.test.mezo.org/tx/0xa8294ca7649a4b8f2079cbad3093dbc882875e28252f42d51e8cdfe8d9781568",
+      "block": 16261713,
+      "time": 1792496933
+    },
+    {
+      "label": "Return lender MUSD to deployer for v2",
+      "actor": "lender",
+      "tx": "0xc55ed64eaf936dd403012e47c761022808226c1c26afb9b4472bd6a953bde35f",
+      "url": "https://explorer.test.mezo.org/tx/0xc55ed64eaf936dd403012e47c761022808226c1c26afb9b4472bd6a953bde35f",
+      "block": 16261715,
+      "time": 1792496940
+    },
+    {
+      "label": "Return lender MEZO to deployer for v2",
+      "actor": "lender",
+      "tx": "0xa6c16eeca5dd15da5edf4dfdec308fff23c01f1a713b1d167f871a5114bd30cf",
+      "url": "https://explorer.test.mezo.org/tx/0xa6c16eeca5dd15da5edf4dfdec308fff23c01f1a713b1d167f871a5114bd30cf",
+      "block": 16261717,
+      "time": 1792496953
+    },
+    {
+      "label": "Return cosigner MUSD to deployer for v2",
+      "actor": "cosigner",
+      "tx": "0xe38521a12693400bbba85c5d93fde513188a7e9a413b0ae0287c3ff6f9e64177",
+      "url": "https://explorer.test.mezo.org/tx/0xe38521a12693400bbba85c5d93fde513188a7e9a413b0ae0287c3ff6f9e64177",
+      "block": 16261719,
+      "time": 1792496960
+    },
+    {
+      "label": "Return cosigner MEZO to deployer for v2",
+      "actor": "cosigner",
+      "tx": "0xba5f95a4cf122db4a58ca48b3a9ffe66226e0b0dd2c4f3a83366d5e0b346a2bd",
+      "url": "https://explorer.test.mezo.org/tx/0xba5f95a4cf122db4a58ca48b3a9ffe66226e0b0dd2c4f3a83366d5e0b346a2bd",
+      "block": 16261720,
+      "time": 1792496966
+    },
+    {
+      "label": "Return borrower MUSD to deployer for v2",
+      "actor": "borrower",
+      "tx": "0xcb9f0f6633184e4b713741d5c4b8bc11e3e4dbf3344600a3967150698babd2de",
+      "url": "https://explorer.test.mezo.org/tx/0xcb9f0f6633184e4b713741d5c4b8bc11e3e4dbf3344600a3967150698babd2de",
+      "block": 16261722,
+      "time": 1792496975
+    },
+    {
+      "label": "Return borrower MEZO to deployer for v2",
+      "actor": "borrower",
+      "tx": "0xec29f31dc465def00c442c6faf2f20f511c2e01f89ba16e3823ac1638282d172",
+      "url": "https://explorer.test.mezo.org/tx/0xec29f31dc465def00c442c6faf2f20f511c2e01f89ba16e3823ac1638282d172",
+      "block": 16261724,
+      "time": 1792496986
+    }
+  ],
+  "checks": []
+}
