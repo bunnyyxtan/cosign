@@ -1,0 +1,638 @@
+{
+  "steps": [
+    {
+      "label": "Deployer borrows 2350 MUSD from Mezo (openTrove)",
+      "actor": "deployer",
+      "tx": "0x18b26ba2ef669f0d43ceeee6cc9126856b11684c6dcf3c78b05da4a8d5c53c35",
+      "url": "https://explorer.test.mezo.org/tx/0x18b26ba2ef669f0d43ceeee6cc9126856b11684c6dcf3c78b05da4a8d5c53c35",
+      "block": 16260452,
+      "time": 1792490888
+    },
+    {
+      "label": "Fund cosigner with BTC for gas",
+      "actor": "deployer",
+      "tx": "0x82e0b92fb46993bad4f185b27011c906a84c1ab4c3161ee6a1b843c454ca3416",
+      "url": "https://explorer.test.mezo.org/tx/0x82e0b92fb46993bad4f185b27011c906a84c1ab4c3161ee6a1b843c454ca3416",
+      "block": 16260453,
+      "time": 1792490896
+    },
+    {
+      "label": "Fund lender with BTC for gas",
+      "actor": "deployer",
+      "tx": "0xef278538a7d2649afd345aa1d63525f2b1d718212f5a7d9a6067b5def1d1f238",
+      "url": "https://explorer.test.mezo.org/tx/0xef278538a7d2649afd345aa1d63525f2b1d718212f5a7d9a6067b5def1d1f238",
+      "block": 16260454,
+      "time": 1792490899
+    },
+    {
+      "label": "Fund borrower with BTC for gas",
+      "actor": "deployer",
+      "tx": "0xee6395cde0d3c0d5204190319ffc4d851da19d49dd31da418c4aec367da14018",
+      "url": "https://explorer.test.mezo.org/tx/0xee6395cde0d3c0d5204190319ffc4d851da19d49dd31da418c4aec367da14018",
+      "block": 16260455,
+      "time": 1792490902
+    },
+    {
+      "label": "Fund co-signer with MUSD",
+      "actor": "deployer",
+      "tx": "0x5dc7629cdb40325b9bf5c6430cfb091f909e3509feb54126da61908f95adb956",
+      "url": "https://explorer.test.mezo.org/tx/0x5dc7629cdb40325b9bf5c6430cfb091f909e3509feb54126da61908f95adb956",
+      "block": 16260456,
+      "time": 1792490906
+    },
+    {
+      "label": "Fund lender with MUSD",
+      "actor": "deployer",
+      "tx": "0xfbb34139d59ec37098495beed6816c833d60021332f2640abcf314089c08093e",
+      "url": "https://explorer.test.mezo.org/tx/0xfbb34139d59ec37098495beed6816c833d60021332f2640abcf314089c08093e",
+      "block": 16260457,
+      "time": 1792490914
+    },
+    {
+      "label": "Fund borrower with 91.4286 MEZO collateral",
+      "actor": "deployer",
+      "tx": "0xcee3d16df796e1a2193a56d6e48a8877747864a9fab015ae026a4c5cfffb7d8d",
+      "url": "https://explorer.test.mezo.org/tx/0xcee3d16df796e1a2193a56d6e48a8877747864a9fab015ae026a4c5cfffb7d8d",
+      "block": 16260459,
+      "time": 1792490922
+    },
+    {
+      "label": "Co-signer approves BTC for veBTC",
+      "actor": "cosigner",
+      "tx": "0xa0a4e8c706b726e076c8be78f0b391e1959709f7e6d52ae30e74654d28312caf",
+      "url": "https://explorer.test.mezo.org/tx/0xa0a4e8c706b726e076c8be78f0b391e1959709f7e6d52ae30e74654d28312caf",
+      "block": 16260461,
+      "time": 1792490933
+    },
+    {
+      "label": "Co-signer locks 0.001 BTC in Mezo veBTC for 4 weeks",
+      "actor": "cosigner",
+      "tx": "0xe80fd08939c445c2b556f2224279b64bfb5b83553c3ceabfc6d2e96d86ceefd4",
+      "url": "https://explorer.test.mezo.org/tx/0xe80fd08939c445c2b556f2224279b64bfb5b83553c3ceabfc6d2e96d86ceefd4",
+      "block": 16260464,
+      "time": 1792490948
+    },
+    {
+      "label": "Co-signer approves MUSD for Bold vault",
+      "actor": "cosigner",
+      "tx": "0xc72c85654cdc89a7e1d1982488eeda2496bb63f183eb127eaac118c1692df1da",
+      "url": "https://explorer.test.mezo.org/tx/0xc72c85654cdc89a7e1d1982488eeda2496bb63f183eb127eaac118c1692df1da",
+      "block": 16260466,
+      "time": 1792490956
+    },
+    {
+      "label": "Co-signer posts 10.0000 MUSD cover (Bold)",
+      "actor": "cosigner",
+      "tx": "0xab1cd7a40bf51b704f30fd09e3b0def6eb12d0dfa4151e8167d3885d0ab606d4",
+      "url": "https://explorer.test.mezo.org/tx/0xab1cd7a40bf51b704f30fd09e3b0def6eb12d0dfa4151e8167d3885d0ab606d4",
+      "block": 16260467,
+      "time": 1792490963
+    },
+    {
+      "label": "Co-signer votes veBTC 100% for Bold",
+      "actor": "cosigner",
+      "tx": "0xf39914f93cae27e0d6ebee9ea8a0e0babd496303738490dbd0c865609756d846",
+      "url": "https://explorer.test.mezo.org/tx/0xf39914f93cae27e0d6ebee9ea8a0e0babd496303738490dbd0c865609756d846",
+      "block": 16260469,
+      "time": 1792490971
+    },
+    {
+      "label": "Co-signer posts 390.0000 more MUSD cover (Bold)",
+      "actor": "cosigner",
+      "tx": "0x2239c62e9859202f8d3e9b3014161ba1d62dc235fdd809c14cb73208e9287b17",
+      "url": "https://explorer.test.mezo.org/tx/0x2239c62e9859202f8d3e9b3014161ba1d62dc235fdd809c14cb73208e9287b17",
+      "block": 16260471,
+      "time": 1792490982
+    },
+    {
+      "label": "Lender approves MUSD for Bold vault",
+      "actor": "lender",
+      "tx": "0x51a03c49256857e60cf2e615570999db63cae7f4b201cfe89b2b82337855c473",
+      "url": "https://explorer.test.mezo.org/tx/0x51a03c49256857e60cf2e615570999db63cae7f4b201cfe89b2b82337855c473",
+      "block": 16260474,
+      "time": 1792490997
+    },
+    {
+      "label": "Lender deposits 1000 MUSD (Bold, senior)",
+      "actor": "lender",
+      "tx": "0x6730a330afdd5a2dc727737914defbb20e2215e9e3aaa94f28b0a83fb12d2be5",
+      "url": "https://explorer.test.mezo.org/tx/0x6730a330afdd5a2dc727737914defbb20e2215e9e3aaa94f28b0a83fb12d2be5",
+      "block": 16260476,
+      "time": 1792491004
+    },
+    {
+      "label": "Deployer approves MEZO for gauge (manual retry after RPC error)",
+      "actor": "deployer",
+      "tx": "0x97390ab3b9ecc212b7706943ea477481fc505e708a938c72487afd09d348ca72",
+      "url": "https://explorer.test.mezo.org/tx/0x97390ab3b9ecc212b7706943ea477481fc505e708a938c72487afd09d348ca72",
+      "block": 16260485,
+      "time": 1792491072
+    },
+    {
+      "label": "Deployer approves MEZO for gauge",
+      "actor": "deployer",
+      "tx": "0x4089c407a3051fa31dff2d984b17c59bd9b4cd8ca68fd15da3948dc789fa1498",
+      "url": "https://explorer.test.mezo.org/tx/0x4089c407a3051fa31dff2d984b17c59bd9b4cd8ca68fd15da3948dc789fa1498",
+      "block": 16260492,
+      "time": 1792491083
+    },
+    {
+      "label": "Deployer funds 8 MEZO rewards (self-funded)",
+      "actor": "deployer",
+      "tx": "0x3cec3c1d08e1c0256850558193a75daa2862406820bcb2b85a8c352160c578f8",
+      "url": "https://explorer.test.mezo.org/tx/0x3cec3c1d08e1c0256850558193a75daa2862406820bcb2b85a8c352160c578f8",
+      "block": 16260494,
+      "time": 1792491090
+    },
+    {
+      "label": "Borrower approves MEZO for Morpho",
+      "actor": "borrower",
+      "tx": "0x074cceb0fb4f3e3ddfeb8e465826284f4cf2a6c289443198260297a5d1f98bff",
+      "url": "https://explorer.test.mezo.org/tx/0x074cceb0fb4f3e3ddfeb8e465826284f4cf2a6c289443198260297a5d1f98bff",
+      "block": 16260505,
+      "time": 1792491143
+    },
+    {
+      "label": "Borrower approves MEZO for Morpho",
+      "actor": "borrower",
+      "tx": "0x2ac05679228cd21a5cf6f35eb3d0d2bbae75b0253e48061fb8a54111032151cf",
+      "url": "https://explorer.test.mezo.org/tx/0x2ac05679228cd21a5cf6f35eb3d0d2bbae75b0253e48061fb8a54111032151cf",
+      "block": 16260519,
+      "time": 1792491212
+    },
+    {
+      "label": "Borrower posts 71.4286 MEZO collateral (Bold)",
+      "actor": "borrower",
+      "tx": "0xa7df0c16894aaceae66e66c78f76ec07f3d94e6c7fed0a9d20f7561b85ca538a",
+      "url": "https://explorer.test.mezo.org/tx/0xa7df0c16894aaceae66e66c78f76ec07f3d94e6c7fed0a9d20f7561b85ca538a",
+      "block": 16260521,
+      "time": 1792491221
+    },
+    {
+      "label": "Borrower borrows 500 MUSD at 70% LTV (Bold)",
+      "actor": "borrower",
+      "tx": "0xe192d8d96f46b8b4c5e15ab044adb94989ee869eecb64a168972bfd16162620b",
+      "url": "https://explorer.test.mezo.org/tx/0xe192d8d96f46b8b4c5e15ab044adb94989ee869eecb64a168972bfd16162620b",
+      "block": 16260523,
+      "time": 1792491232
+    },
+    {
+      "label": "DEMO ORACLE: MEZO price -70% (10.00 -> 3.00 MUSD)",
+      "actor": "deployer",
+      "tx": "0x4d10d211329d4d2310bbbcfd480b1ddddfee39abd1593922e672f82409fde73b",
+      "url": "https://explorer.test.mezo.org/tx/0x4d10d211329d4d2310bbbcfd480b1ddddfee39abd1593922e672f82409fde73b",
+      "block": 16260528,
+      "time": 1792491254
+    },
+    {
+      "label": "Liquidator approves MUSD for Morpho",
+      "actor": "deployer",
+      "tx": "0xb1282b0b927c72885b3562e9e2d6135462d4ec98e0ebb21b4cdcfb01f2e18569",
+      "url": "https://explorer.test.mezo.org/tx/0xb1282b0b927c72885b3562e9e2d6135462d4ec98e0ebb21b4cdcfb01f2e18569",
+      "block": 16260530,
+      "time": 1792491270
+    },
+    {
+      "label": "Liquidator seizes all collateral; Morpho realises bad debt",
+      "actor": "deployer",
+      "tx": "0x2493df18ac5a416b44205bfa4d0c343225a7ac9746d984334a5452105de10b6a",
+      "url": "https://explorer.test.mezo.org/tx/0x2493df18ac5a416b44205bfa4d0c343225a7ac9746d984334a5452105de10b6a",
+      "block": 16260533,
+      "time": 1792491282
+    },
+    {
+      "label": "Cosign sync: loss charged to cover first",
+      "actor": "deployer",
+      "tx": "0xc884e956e06303b477add9a8c4c0b10e62d12fd707cc26b8897b26dfc83d3465",
+      "url": "https://explorer.test.mezo.org/tx/0xc884e956e06303b477add9a8c4c0b10e62d12fd707cc26b8897b26dfc83d3465",
+      "block": 16260536,
+      "time": 1792491292
+    },
+    {
+      "label": "Gauge distributes epoch 0 MEZO by cover-capped weight",
+      "actor": "deployer",
+      "tx": "0x3abab68ae159293458b9e0cff26990958ecc0b092330593d3369817c4cb6ab9a",
+      "url": "https://explorer.test.mezo.org/tx/0x3abab68ae159293458b9e0cff26990958ecc0b092330593d3369817c4cb6ab9a",
+      "block": 16260565,
+      "time": 1792491432
+    },
+    {
+      "label": "Cosigner claims MEZO rewards (Bold)",
+      "actor": "cosigner",
+      "tx": "0x521992de7750cecd8345fed9ffa4323a31754b814e7acd9d272c6583b2ac086e",
+      "url": "https://explorer.test.mezo.org/tx/0x521992de7750cecd8345fed9ffa4323a31754b814e7acd9d272c6583b2ac086e",
+      "block": 16260594,
+      "time": 1792491574
+    },
+    {
+      "label": "Cosigner claims MEZO rewards (Bold)",
+      "actor": "cosigner",
+      "tx": "0xd1feeca0d676590aa8ad2fef7ae4507e83b03eb3e2d14e87249333c873545e3f",
+      "url": "https://explorer.test.mezo.org/tx/0xd1feeca0d676590aa8ad2fef7ae4507e83b03eb3e2d14e87249333c873545e3f",
+      "block": 16260697,
+      "time": 1792492062
+    },
+    {
+      "label": "Lender claims MEZO rewards (Bold)",
+      "actor": "lender",
+      "tx": "0xf760d6006bdf4196061ce182e34278183ad2d4590cdbaf22fe135a052ff6e978",
+      "url": "https://explorer.test.mezo.org/tx/0xf760d6006bdf4196061ce182e34278183ad2d4590cdbaf22fe135a052ff6e978",
+      "block": 16260699,
+      "time": 1792492074
+    },
+    {
+      "label": "DEMO ORACLE: restore starting MEZO price",
+      "actor": "deployer",
+      "tx": "0x8470891e9b9459f75a7c0c2311e88833451ca4471c181192b0d3e384f4e264fc",
+      "url": "https://explorer.test.mezo.org/tx/0x8470891e9b9459f75a7c0c2311e88833451ca4471c181192b0d3e384f4e264fc",
+      "block": 16260707,
+      "time": 1792492115
+    },
+    {
+      "label": "Fund borrower with 14.2857 MEZO (second Bold loan)",
+      "actor": "deployer",
+      "tx": "0x8cd16500a49eeccc10aa4476fc995a99dad3f87f0facfbaddb428b7440c66ed8",
+      "url": "https://explorer.test.mezo.org/tx/0x8cd16500a49eeccc10aa4476fc995a99dad3f87f0facfbaddb428b7440c66ed8",
+      "block": 16260709,
+      "time": 1792492127
+    },
+    {
+      "label": "Borrower approves MEZO for Morpho",
+      "actor": "borrower",
+      "tx": "0xf7cc531095c1e89c3654a6339c04598a00b3d15eed2fc421d6ca0793aa6a086e",
+      "url": "https://explorer.test.mezo.org/tx/0xf7cc531095c1e89c3654a6339c04598a00b3d15eed2fc421d6ca0793aa6a086e",
+      "block": 16260712,
+      "time": 1792492137
+    },
+    {
+      "label": "Borrower posts 14.2857 MEZO collateral (Bold, loan 2)",
+      "actor": "borrower",
+      "tx": "0xc8c7044abb6aa6e9d3ff33194918e11b81258e601df237eeea926230ed165715",
+      "url": "https://explorer.test.mezo.org/tx/0xc8c7044abb6aa6e9d3ff33194918e11b81258e601df237eeea926230ed165715",
+      "block": 16260714,
+      "time": 1792492146
+    },
+    {
+      "label": "Borrower borrows 100 MUSD (Bold, loan 2)",
+      "actor": "borrower",
+      "tx": "0x6ba66d9c9a93a798a9281c797b998f4658b7d0afadd7f97047c241be46f068aa",
+      "url": "https://explorer.test.mezo.org/tx/0x6ba66d9c9a93a798a9281c797b998f4658b7d0afadd7f97047c241be46f068aa",
+      "block": 16260716,
+      "time": 1792492157
+    },
+    {
+      "label": "DEMO ORACLE: MEZO price -70% (10.00 -> 3.00 MUSD)",
+      "actor": "deployer",
+      "tx": "0xddf36958e60d451a621255db10d2f9fecb3accdc88e91b240ea04b36c00690c6",
+      "url": "https://explorer.test.mezo.org/tx/0xddf36958e60d451a621255db10d2f9fecb3accdc88e91b240ea04b36c00690c6",
+      "block": 16260756,
+      "time": 1792492350
+    },
+    {
+      "label": "Liquidator approves MUSD for CosignLiquidator",
+      "actor": "deployer",
+      "tx": "0x1fa2a97337455fac09987c75ff7686ce6860390c3880bb39ab390b919845dc74",
+      "url": "https://explorer.test.mezo.org/tx/0x1fa2a97337455fac09987c75ff7686ce6860390c3880bb39ab390b919845dc74",
+      "block": 16260758,
+      "time": 1792492358
+    },
+    {
+      "label": "CosignLiquidator: sync, liquidate on Morpho, sync",
+      "actor": "deployer",
+      "tx": "0x9e42ce86822aab81d363ab7d26ffe1120bbb85170df6a039c9034ac1ac935679",
+      "url": "https://explorer.test.mezo.org/tx/0x9e42ce86822aab81d363ab7d26ffe1120bbb85170df6a039c9034ac1ac935679",
+      "block": 16260760,
+      "time": 1792492366
+    },
+    {
+      "label": "DEMO ORACLE: restore starting MEZO price",
+      "actor": "deployer",
+      "tx": "0x7eca4115ba9922038a669d600c976ad274cd6639e3bbefde1568b72124f4a07d",
+      "url": "https://explorer.test.mezo.org/tx/0x7eca4115ba9922038a669d600c976ad274cd6639e3bbefde1568b72124f4a07d",
+      "block": 16260765,
+      "time": 1792492390
+    },
+    {
+      "label": "Deployer borrows 300 more MUSD from Mezo (withdrawMUSD)",
+      "actor": "deployer",
+      "tx": "0xd7de26acdcaea2ebf90ff07abf5ce95c2cda25e8cd511f0e77fc2c742e9c5aba",
+      "url": "https://explorer.test.mezo.org/tx/0xd7de26acdcaea2ebf90ff07abf5ce95c2cda25e8cd511f0e77fc2c742e9c5aba",
+      "block": 16260793,
+      "time": 1792492524
+    },
+    {
+      "label": "Fund co-signer with 60 MUSD for the browser recap test",
+      "actor": "deployer",
+      "tx": "0xd664536a0aa71c9cbb6d7cffe303b7504542fddf290e25b5cf6e191a6c6e4555",
+      "url": "https://explorer.test.mezo.org/tx/0xd664536a0aa71c9cbb6d7cffe303b7504542fddf290e25b5cf6e191a6c6e4555",
+      "block": 16260811,
+      "time": 1792492616
+    },
+    {
+      "label": "Deployer approves MEZO for gauge",
+      "actor": "deployer",
+      "tx": "0x8f62fc021f70b6269a29f0aa8dd35bc16be1ed9db180b92db2f37c724946b945",
+      "url": "https://explorer.test.mezo.org/tx/0x8f62fc021f70b6269a29f0aa8dd35bc16be1ed9db180b92db2f37c724946b945",
+      "block": 16260857,
+      "time": 1792492833
+    },
+    {
+      "label": "Deployer funds 10 MEZO rewards (self-funded, two markets)",
+      "actor": "deployer",
+      "tx": "0x25ac3e96d1d715019bd58bd8d977a07b3c62beb867ce179efbe3f6455314b2ea",
+      "url": "https://explorer.test.mezo.org/tx/0x25ac3e96d1d715019bd58bd8d977a07b3c62beb867ce179efbe3f6455314b2ea",
+      "block": 16260859,
+      "time": 1792492840
+    },
+    {
+      "label": "Gauge distributes epoch 3 MEZO across both markets",
+      "actor": "deployer",
+      "tx": "0x598ff367778f0d08958282610fd70e9b35d8a0d163623d24eaee0c7af2c1e75d",
+      "url": "https://explorer.test.mezo.org/tx/0x598ff367778f0d08958282610fd70e9b35d8a0d163623d24eaee0c7af2c1e75d",
+      "block": 16260905,
+      "time": 1792493060
+    },
+    {
+      "label": "Co-signer requests to withdraw 10% of Steady cover",
+      "actor": "cosigner",
+      "tx": "0x68aa620fc59ffd96394bf968909b5729102e7d02cd7c552d3ade913e286e8663",
+      "url": "https://explorer.test.mezo.org/tx/0x68aa620fc59ffd96394bf968909b5729102e7d02cd7c552d3ade913e286e8663",
+      "block": 16260972,
+      "time": 1792493379
+    }
+  ],
+  "checks": [
+    {
+      "check": "Trove collateral ratio is safe",
+      "pass": true,
+      "detail": "148.3% with 0.0465 BTC at $81,413 (min 110%)",
+      "block": 16260450
+    },
+    {
+      "check": "MUSD received from Mezo borrowing",
+      "pass": true,
+      "detail": "2,350.0000 MUSD",
+      "block": 16260452
+    },
+    {
+      "check": "veBTC position minted to co-signer",
+      "pass": true,
+      "detail": "tokenId 390, voting power 0.0008",
+      "block": 16260465
+    },
+    {
+      "check": "Junior shares and cover recorded",
+      "pass": true,
+      "detail": "10000000000000000000000000 shares worth 10.0000 MUSD",
+      "block": 16260468
+    },
+    {
+      "check": "Effective weight capped by cover",
+      "pass": true,
+      "detail": "votes 752559413315346, cover cap 100000000000000 (10.0000 MUSD x capRate 10000000000000), effective 100000000000000",
+      "block": 16260470
+    },
+    {
+      "check": "Effective weight follows cover live",
+      "pass": true,
+      "detail": "cover cap now 4000000000000000, effective 752559413315346 (was 100000000000000)",
+      "block": 16260472
+    },
+    {
+      "check": "Lending capacity opened by cover",
+      "pass": true,
+      "detail": "7,600.0000 MUSD (= 400 cover x 19)",
+      "block": 16260472
+    },
+    {
+      "check": "Deposit above capacity is rejected",
+      "pass": true,
+      "detail": "eth_call depositSenior(7,600.0000) -> - server returned an error response: error code 3: execution reverted, data: \"0xac235bb400000000000000000000000000000000000000000000019bff2ff57968c00000\"",
+      "block": 16260473
+    },
+    {
+      "check": "Senior and junior capital allocated",
+      "pass": true,
+      "detail": "senior 1,000.0000, junior 400.0000, coverage 28.57%",
+      "block": 16260477
+    },
+    {
+      "check": "Vault supplied everything to Morpho",
+      "pass": true,
+      "detail": "Morpho market supply 1,400.0000 MUSD",
+      "block": 16260477
+    },
+    {
+      "check": "Gauge holds exactly the funded MEZO",
+      "pass": true,
+      "detail": "epoch 0 budget 8.0000 MEZO",
+      "block": 16260494
+    },
+    {
+      "check": "Collateral and debt recorded by Morpho",
+      "pass": true,
+      "detail": "collateral 71.4286 MEZO, debt 500.0000 MUSD, LTV 70.00% (LLTV 77%)",
+      "block": 16260525
+    },
+    {
+      "check": "Borrower received MUSD",
+      "pass": true,
+      "detail": "500.0000 MUSD",
+      "block": 16260526
+    },
+    {
+      "check": "Only the oracle owner can set the demo price",
+      "pass": true,
+      "detail": "eth_call setPrice from borrower -> - server returned an error response: error code 3: execution reverted, data: \"0x118cdaa7000000000000000000000000a93a62aab9aafb581d1a5340cfe51ddaa405917f\"",
+      "block": 16260526
+    },
+    {
+      "check": "Borrower is now liquidatable",
+      "pass": true,
+      "detail": "LTV 233.3% > LLTV 77%",
+      "block": 16260528
+    },
+    {
+      "check": "Morpho realised bad debt",
+      "pass": true,
+      "detail": "300.5000 MUSD written off market supply (approx., includes accrued interest delta)",
+      "block": 16260535
+    },
+    {
+      "check": "LossAbsorbed: juniorLoss + seniorLoss == recognized loss",
+      "pass": true,
+      "detail": "300.5000 + 0.0000 = 300.5000 MUSD (tx 0xc884e956e06303b477add9a8c4c0b10e62d12fd707cc26b8897b26dfc83d3465)",
+      "block": 16260547
+    },
+    {
+      "check": "Junior absorbed the whole loss",
+      "pass": true,
+      "detail": "cover 400.0000 -> 99.5000 MUSD (+ interest accrued before sync)",
+      "block": 16260547
+    },
+    {
+      "check": "Senior book not reduced by the loss",
+      "pass": false,
+      "detail": "senior 1,000.0000 -> 1,000.0000 MUSD",
+      "block": 16260547,
+      "note": "Real finding: senior had 0.0000153 MUSD of interest accrued but not yet synced; a same-interval liquidation netted it against the loss. Fixed with CosignLiquidator (sync, liquidate, sync); verified live in the second loss below."
+    },
+    {
+      "check": "Distributed no more than funded",
+      "pass": true,
+      "detail": "funded 8.0000, sent to Bold 8.0000, left in gauge 0.0000",
+      "block": 16260565
+    },
+    {
+      "check": "Epoch cannot be distributed twice",
+      "pass": true,
+      "detail": "second distribute -> - server returned an error response: error code 3: execution reverted, data: \"0xcce553a9\"",
+      "block": 16260566
+    },
+    {
+      "check": "Cosigner claim paid",
+      "pass": true,
+      "detail": "0.5680 MEZO",
+      "block": 16260595
+    },
+    {
+      "check": "Cosigner cannot double claim",
+      "pass": false,
+      "detail": "pending right after claim 0.0280 MEZO (only new streaming)",
+      "block": 16260596,
+      "note": "Check bug, not a contract bug: rewards kept streaming in the seconds between the claim and the check. Re-checked after the stream ended: pending 0, second claim pays 0."
+    },
+    {
+      "check": "Cosigner has nothing left to claim after the stream",
+      "pass": true,
+      "detail": "pending 0",
+      "block": 16260697
+    },
+    {
+      "check": "Cosigner second claim pays 0",
+      "pass": true,
+      "detail": "eth_call claimRewards -> 0",
+      "block": 16260697
+    },
+    {
+      "check": "Lender has nothing left to claim after the stream",
+      "pass": true,
+      "detail": "pending 0",
+      "block": 16260699
+    },
+    {
+      "check": "Lender second claim pays 0",
+      "pass": true,
+      "detail": "eth_call claimRewards -> 0",
+      "block": 16260700
+    },
+    {
+      "check": "Claims + vault remainder == distributed (no over-distribution)",
+      "pass": true,
+      "detail": "claimed 8.0000 + left in vault 0.0000 (rounding dust) = 8.0000 of 8.0000 MEZO",
+      "block": 16260700
+    },
+    {
+      "check": "Senior has unbooked interest before the crash",
+      "pass": true,
+      "detail": "booked 1,000.0000, with pending interest 1000.000047499814 MUSD",
+      "block": 16260754
+    },
+    {
+      "check": "Interest booked before the loss (InterestAccrued precedes LossAbsorbed)",
+      "pass": true,
+      "detail": "senior credited 0.000055286672 MUSD interest first",
+      "block": 16260760
+    },
+    {
+      "check": "Second loss: juniorLoss + seniorLoss == recognized loss",
+      "pass": true,
+      "detail": "60.1001 + 0.0000 = 60.1001 MUSD",
+      "block": 16260760
+    },
+    {
+      "check": "Senior kept all interest earned before the loss",
+      "pass": true,
+      "detail": "senior 1,000.0000 -> 1000.000055286672 MUSD",
+      "block": 16260760
+    },
+    {
+      "check": "Coverage below minimum after the real loss",
+      "pass": true,
+      "detail": "coverage 3.79% < 5%, room to lend 0",
+      "block": 16260761
+    },
+    {
+      "check": "Lender deposits blocked while under-covered",
+      "pass": true,
+      "detail": "eth_call depositSenior(1) -> - server returned an error response: error code 3: execution reverted, data: \"0xac235bb40000000000000000000000000000000000000000000000000000000000000000\"",
+      "block": 16260761
+    },
+    {
+      "check": "Top-up received",
+      "pass": true,
+      "detail": "deployer holds 360.6000 MUSD",
+      "block": 16260794
+    },
+    {
+      "check": "Two-market split follows effective weight",
+      "pass": true,
+      "detail": "weights {'Bold': 451112268359727, 'Steady': 300741512239818}, sent Bold 6.0000 / Steady 4.0000 of 10 MEZO",
+      "block": 16260906
+    },
+    {
+      "check": "Withdrawal request recorded with a notice period",
+      "pass": true,
+      "detail": "ready at 1792493975 (594s from now), 15000000000000000000000000 shares",
+      "block": 16260972
+    },
+    {
+      "check": "Cover cannot be withdrawn before the notice period ends",
+      "pass": true,
+      "detail": "eth_call withdrawJunior -> - server returned an error response: error code 3: execution reverted, data: \"0x5a8f69d5000000000000000000000000000000000000000000000000000000006ad74997\"",
+      "block": 16260973
+    },
+    {
+      "check": "Accounts without a request cannot withdraw cover",
+      "pass": true,
+      "detail": "eth_call withdrawJunior from lender -> - server returned an error response: error code 3: execution reverted, data: \"0xcffd93ac\"",
+      "block": 16260973
+    }
+  ],
+  "startPrice": "10000000000000000000000000000000000000",
+  "veBTCTokenId": 390,
+  "rewardEpoch": 0,
+  "before": {
+    "senior": "1000000015288650142321",
+    "junior": "400000013250163456678",
+    "seniorPrice": "1000000015288650142",
+    "juniorPrice": "1000000033125408641"
+  },
+  "badDebtTx": "0x2493df18ac5a416b44205bfa4d0c343225a7ac9746d984334a5452105de10b6a",
+  "after": {
+    "senior": "1000000000000000000000",
+    "junior": "99499999999999998800",
+    "seniorPrice": "1000000000000000000",
+    "juniorPrice": "248749999999999997"
+  },
+  "loss": {
+    "tx": "0xc884e956e06303b477add9a8c4c0b10e62d12fd707cc26b8897b26dfc83d3465",
+    "recognized": "300500000000000001200",
+    "byJunior": "300500000000000001200",
+    "bySenior": "0"
+  },
+  "rewards": {
+    "epoch": 0,
+    "funded": "8000000000000000000",
+    "distributedToBold": "8000000000000000000",
+    "claimed": "7999999999000000000"
+  },
+  "loss2": {
+    "tx": "0x9e42ce86822aab81d363ab7d26ffe1120bbb85170df6a039c9034ac1ac935679",
+    "recognized": "60100081050261155237",
+    "byJunior": "60100081050261155237",
+    "bySenior": "0",
+    "seniorInterestBooked": "55286672002047"
+  },
+  "rewardEpoch2": 3
+}
