@@ -6,3 +6,6 @@ contracts/out/
 contracts/cache/
 contracts/broadcast/*/31337/
 web/dist/
+web/public/*.json
+.claude/
+web/node_modules/
