@@ -1,8 +1,8 @@
 # COSIGN: full product brief for any AI or human joining this project
 
 > Read this whole file before writing code, a pitch, or a deck. It is the single source of truth for **what Cosign is, why it exists, how it works, what to build first, and what not to claim**.
-> v2, 20 Oct 2026. **Live on Mezo testnet**: addresses, transactions and verification in `docs/TESTNET_REPORT.md`. v2 replaces the v1 "cushion = earned fees" design after review (see §10). Supporting research: `research/IDEA_DECISION.md`, raw sources in `research/raw/`.
-> `research/COSIGN_VISION.md` is v1 pitch notes: its mechanism is outdated, so trust this file. `research/MEZO_BUILDATHON_RESEARCH.md` and `research/CLAUDE_FIRST_BUILD_BRIEF.md` describe an older idea ("Mezo Depth") and are **superseded**; their rules and dates are still accurate.
+> v2, 20 Oct 2026. **Live on Mezo testnet**: addresses and transactions in `contracts/deployments/31611.json` and `docs/TESTNET_EVIDENCE.md`; status and open risks in `docs/TESTNET_REPORT.md`. v2 replaces the v1 "cushion = earned fees" design after review (see §10). Early research notes are kept locally and are not part of the public repository.
+> Where this brief and the contracts disagree, the contracts and the tests are right.
 
 ---
 
@@ -191,7 +191,7 @@ This answers the critique of v1: fee-only cover would have absorbed about 4% of 
 - Undistributed rewards (no votes) roll to the next epoch.
 
 ### 5.3 Invariants: tests that must exist (Foundry)
-1. If `loss ≤ juniorAssets`, the senior share price **does not decrease**. This is the headline guarantee.
+1. If `loss ≤ juniorAssets`, senior's **last-synced** principal does not decrease. This is the headline guarantee, and it is conditional: interest accrued since the last sync is not guaranteed when a liquidation goes straight to Morpho (the vault only sees the net change; the forgone interest moves to junior), and `CosignLiquidator` (sync, liquidate, sync) removes that gap. Measured live: 0.000004 MUSD forgone on a direct liquidation; 0 through the liquidator.
 2. `byJunior + bySenior == loss`, always. `seniorAssets + juniorAssets == total` after every sync, up to rounding.
 3. `seniorAssets ≤ 19 × juniorAssets` holds after every deposit and every junior withdrawal.
 4. Junior can't withdraw before the cooldown, or below the coverage minimum.
@@ -320,8 +320,4 @@ Record with a screen recorder with auto-zoom (Cap / Screen Studio / OBS). Use a 
 | Path | What |
 |---|---|
 | `COSIGN.md` | This brief: the source of truth (v2) |
-| `research/IDEA_DECISION.md` | Why Cosign beat the alternatives, with sources |
-| `research/COSIGN_VISION.md` | v1 pitch notes (mechanism outdated; trust this file) |
-| `research/raw/` | Raw Exa / Jina / gh dumps (Reddit, Trustpilot, Mezo blog, docs, AKINDO listing) |
-| `research/MEZO_BUILDATHON_RESEARCH.md`, `research/CLAUDE_FIRST_BUILD_BRIEF.md` | **Superseded** idea ("Mezo Depth"); rules and dates still accurate |
 | `.tools/Agent-Reach`, `.tools/mcporter` | Research tooling (Exa search via mcporter) |

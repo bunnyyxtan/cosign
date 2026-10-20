@@ -1,3 +1,5 @@
+> **Archived v1 report.** Superseded by the v2 deployment; see `TESTNET_REPORT.md` and `TESTNET_EVIDENCE.md`. Kept as a record, including its failures.
+
 # Cosign: Mezo testnet deployment and end-to-end verification
 
 Engineering Directive 004 report. 20 October 2026. Network: **Mezo testnet, chain ID 31611** (RPC `https://rpc.test.mezo.org`, explorer `https://explorer.test.mezo.org`).

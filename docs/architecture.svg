@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" role="img" aria-labelledby="t d" font-family="Georgia, 'Times New Roman', serif">
+  <title id="t">Cosign architecture</title>
+  <desc id="d">Co-signers and lenders deposit MUSD into a CosignVault, which supplies a Morpho Blue market. The CosignGauge reads veBTC votes capped by cover and pays self-funded MEZO to vaults. CosignLiquidator syncs the vault around a Morpho liquidation.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#1b2a41"/></marker>
+    <marker id="m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#b87a1f"/></marker>
+    <style>
+      .bg{fill:#f7f2e8}.ink{fill:#1f2328}.mute{fill:#5b6168}
+      .box{fill:#fffdf8;stroke:#1b2a41;stroke-width:1.4}
+      .core{fill:#1b2a41;stroke:#1b2a41}
+      .ext{fill:#efe8d8;stroke:#8a8f96;stroke-width:1.2;stroke-dasharray:5 4}
+      .ln{stroke:#1b2a41;stroke-width:1.4;fill:none}
+      .am{stroke:#b87a1f;stroke-width:1.6;fill:none}
+      .t{font-size:15px}.s{font-size:12px}.h{font-size:13px;letter-spacing:.12em}
+      .w{fill:#f7f2e8}.amber{fill:#b87a1f}
+    </style>
+  </defs>
+  <rect class="bg" width="960" height="560"/>
+
+  <text class="h mute" x="40" y="38">PARTICIPANTS</text>
+  <text class="h mute" x="360" y="38">COSIGN (THIS REPOSITORY)</text>
+  <text class="h mute" x="700" y="38">MORPHO BLUE (UNMODIFIED)</text>
+
+  <!-- participants -->
+  <rect class="box" x="40" y="60" width="230" height="74" rx="4"/>
+  <text class="ink t" x="56" y="88">Co-signers</text>
+  <text class="mute s" x="56" y="108">veBTC holders post MUSD cover</text>
+  <text class="mute s" x="56" y="124">junior tranche, loses first</text>
+
+  <rect class="box" x="40" y="168" width="230" height="74" rx="4"/>
+  <text class="ink t" x="56" y="196">Lenders</text>
+  <text class="mute s" x="56" y="216">deposit MUSD, senior tranche</text>
+  <text class="mute s" x="56" y="232">limit = maxLeverage × cover</text>
+
+  <rect class="box" x="40" y="318" width="230" height="74" rx="4"/>
+  <text class="ink t" x="56" y="346">Borrowers</text>
+  <text class="mute s" x="56" y="366">post MEZO collateral</text>
+  <text class="mute s" x="56" y="382">borrow MUSD directly on Morpho</text>
+
+  <rect class="ext" x="40" y="452" width="230" height="66" rx="4"/>
+  <text class="ink t" x="56" y="478">Mezo veBTC</text>
+  <text class="mute s" x="56" y="498">vote power, read live by the gauge</text>
+
+  <!-- cosign -->
+  <rect class="core" x="360" y="96" width="250" height="150" rx="4"/>
+  <text class="w t" x="378" y="124">CosignVault</text>
+  <text class="w s" x="378" y="146">one per Morpho market</text>
+  <text class="w s" x="378" y="170">junior + senior share accounting</text>
+  <text class="w s" x="378" y="188">interest split, junior premium</text>
+  <text class="w s" x="378" y="206">losses: junior first, then senior</text>
+  <text class="w s" x="378" y="224">cover exits: notice, then window</text>
+
+  <rect class="box" x="360" y="328" width="250" height="92" rx="4"/>
+  <text class="ink t" x="378" y="356">CosignGauge</text>
+  <text class="mute s" x="378" y="378">weight = min(votes, cover × capRate)</text>
+  <text class="mute s" x="378" y="396">self-funded MEZO per epoch</text>
+  <text class="mute s" x="378" y="412">poke / clean keep votes honest</text>
+
+  <rect class="box" x="360" y="452" width="250" height="66" rx="4"/>
+  <text class="ink t" x="378" y="478">CosignLiquidator</text>
+  <text class="mute s" x="378" y="498">sync → liquidate → sync</text>
+  <text class="mute s" x="378" y="512">books interest before a loss</text>
+
+  <!-- morpho -->
+  <rect class="box" x="720" y="96" width="200" height="150" rx="4"/>
+  <text class="ink t" x="738" y="124">Morpho Blue market</text>
+  <text class="mute s" x="738" y="146">loan MUSD, collateral MEZO</text>
+  <text class="mute s" x="738" y="166">supply / borrow / liquidate</text>
+  <text class="mute s" x="738" y="186">bad debt cuts supply assets</text>
+  <text class="amber s" x="738" y="226">the vault is a supplier here</text>
+
+  <rect class="ext" x="720" y="330" width="200" height="104" rx="4"/>
+  <text class="ink t" x="738" y="356">AdminOracle</text>
+  <text class="mute s" x="738" y="375">demo only, single owner</text>
+  <text class="ink t" x="738" y="404">FixedRateIrm</text>
+  <text class="mute s" x="738" y="423">fixed APR per market</text>
+
+  <!-- arrows -->
+  <path class="ln" d="M270 97H360" marker-end="url(#a)"/>
+  <text class="mute s" x="296" y="90">cover</text>
+  <path class="ln" d="M270 205H316V190H360" marker-end="url(#a)"/>
+  <text class="mute s" x="282" y="224">senior</text>
+  <path class="ln" d="M610 150H720" marker-end="url(#a)"/>
+  <text class="mute s" x="628" y="142">supplies MUSD</text>
+  <path class="ln" d="M270 355H300V287H700V230H720" marker-end="url(#a)"/>
+  <text class="mute s" x="640" y="274">borrow, repay</text>
+  <path class="am" d="M485 328V246" marker-end="url(#m)"/>
+  <text class="amber s" x="495" y="312">MEZO rewards</text>
+  <path class="ln" d="M270 485H330V380H360" marker-end="url(#a)"/>
+  <text class="mute s" x="282" y="476">vote power</text>
+  <path class="ln" d="M610 475H650V230H610" marker-end="url(#a)" stroke-dasharray="4 3"/>
+  <text class="mute s" x="656" y="470">sync()</text>
+  <path class="ln" d="M610 500H940V170H920" marker-end="url(#a)"/>
+  <text class="mute s" x="760" y="494">liquidate()</text>
+  <path class="ln" d="M820 330V290H760V246" marker-end="url(#a)" stroke-dasharray="4 3"/>
+  <text class="mute s" x="768" y="282">price, rate</text>
+
+  <text class="mute s" x="40" y="545">Solid line: call or flow. Dashed box: external or demo-only component. Amber: reward flow. Tokens: MUSD (loan), MEZO (collateral and rewards).</text>
+</svg>
