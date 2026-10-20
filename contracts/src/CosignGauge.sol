@@ -25,7 +25,8 @@ interface ICosignVault {
 ///         3. Cover holders cannot fully exit a vault while their vote on it is active (enforced by the vault).
 ///         4. Anyone can `clean` votes whose voter no longer holds cover (e.g. after a wipe).
 ///         Rewards are SELF-FUNDED (anyone calls `fund`), not Mezo protocol emissions.
-/// @dev Vote power is read from veBTC at vote time; re-vote next epoch to refresh decayed power.
+/// @dev Vote power is read from veBTC at vote time. Anyone can `poke` a token whose power has since decayed or
+///      expired; owners re-vote to refresh upward. A vault's cap is on its total cover, not per voter.
 ///      Weights are read live when `distribute` is called. Unaudited prototype, testnet only.
 contract CosignGauge is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -46,6 +47,7 @@ contract CosignGauge is Ownable, ReentrancyGuard {
     mapping(uint256 => address) public voterOf;
     mapping(uint256 => address[]) internal _tokenVaults;
     mapping(uint256 => uint256) public lastVotedEpochPlusOne;
+    mapping(uint256 => uint256) public votedPower; // veBTC power the token's current votes were cast with
 
     mapping(uint256 => uint256) public epochBudget;
     mapping(uint256 => bool) public distributed;
@@ -55,6 +57,7 @@ contract CosignGauge is Ownable, ReentrancyGuard {
     event VoteCast(uint256 indexed tokenId, address indexed vault, uint256 votes);
     event VotesReset(uint256 indexed tokenId, address indexed voter);
     event VoteCleaned(uint256 indexed tokenId, address indexed vault, uint256 votes);
+    event Poked(uint256 indexed tokenId, uint256 oldPower, uint256 newPower);
     event Funded(address indexed from, uint256 indexed epoch, uint256 amount);
     event Distributed(uint256 indexed epoch, address indexed vault, uint256 weight, uint256 amount);
     event Rolled(uint256 indexed fromEpoch, uint256 indexed toEpoch, uint256 amount);
@@ -145,6 +148,7 @@ contract CosignGauge is Ownable, ReentrancyGuard {
             emit VoteCast(tokenId, v, amt);
         }
         voterOf[tokenId] = msg.sender;
+        votedPower[tokenId] = power;
         lastVotedEpochPlusOne[tokenId] = epoch + 1;
         emit Voted(tokenId, msg.sender, epoch, power);
     }
@@ -167,6 +171,27 @@ contract CosignGauge is Ownable, ReentrancyGuard {
         emit VoteCleaned(tokenId, vault, amt);
     }
 
+    /// @notice Anyone can scale a token's votes down to its current veBTC power (decayed or expired locks).
+    ///         Down only: owners re-vote to use more power.
+    function poke(uint256 tokenId) external nonReentrant {
+        uint256 old = votedPower[tokenId];
+        uint256 p = ve.balanceOfNFT(tokenId);
+        if (old == 0 || p >= old) revert BadInput();
+        address voter = voterOf[tokenId];
+        address[] storage list = _tokenVaults[tokenId];
+        for (uint256 i; i < list.length; ++i) {
+            address v = list[i];
+            uint256 amt = tokenVotes[tokenId][v];
+            if (amt == 0) continue;
+            uint256 cut = amt - amt * p / old;
+            tokenVotes[tokenId][v] = amt - cut;
+            vaultVotes[v] -= cut;
+            accountVotes[v][voter] -= cut;
+        }
+        votedPower[tokenId] = p;
+        emit Poked(tokenId, old, p);
+    }
+
     function _reset(uint256 tokenId) internal {
         address voter = voterOf[tokenId];
         address[] storage list = _tokenVaults[tokenId];
@@ -179,6 +204,7 @@ contract CosignGauge is Ownable, ReentrancyGuard {
             accountVotes[v][voter] -= amt;
         }
         delete _tokenVaults[tokenId];
+        delete votedPower[tokenId];
         if (voter != address(0)) {
             delete voterOf[tokenId];
             emit VotesReset(tokenId, voter);
