@@ -8,8 +8,9 @@ import {CosignVault} from "../src/CosignVault.sol";
 import {CosignGauge, IVeBTC} from "../src/CosignGauge.sol";
 import {FixedRateIrm} from "../src/FixedRateIrm.sol";
 import {AdminOracle} from "../src/AdminOracle.sol";
+import {CosignLiquidator} from "../src/CosignLiquidator.sol";
 
-/// Deploys Cosign on Mezo testnet in two steps:
+/// Deploys Cosign on Mezo testnet in two steps (v2 also deploys CosignLiquidator in core):
 ///   forge script script/Deploy.s.sol --sig "core()"                 Morpho Blue, demo oracle, gauge, Bold market + vault
 ///   forge script script/Deploy.s.sol --sig "addMarket(string)" steady   second market, added after Bold passes the full cycle
 contract Deploy is Script {
@@ -49,6 +50,7 @@ contract Deploy is Script {
         AdminOracle oracle = new AdminOracle(admin, mezoPriceWad * 1e18);
         CosignGauge gauge = new CosignGauge(admin, IVeBTC(VEBTC), IERC20(MEZO), EPOCH);
         (address irm, address vault) = _market(morpho, address(oracle), gauge, _spec("bold"));
+        CosignLiquidator liquidator = new CosignLiquidator(morpho);
         vm.stopBroadcast();
 
         string memory o = "deploy";
@@ -63,6 +65,7 @@ contract Deploy is Script {
         vm.serializeAddress(o, "gauge", address(gauge));
         vm.serializeAddress(o, "irmBold", irm);
         vm.serializeAddress(o, "vaultBold", vault);
+        vm.serializeAddress(o, "liquidator", address(liquidator));
         vm.serializeAddress(o, "irmSteady", address(0));
         string memory json = vm.serializeAddress(o, "vaultSteady", address(0));
         vm.writeJson(json, _path());
