@@ -1,7 +1,7 @@
 import { formatUnits } from "viem";
 
 const n = (v: bigint) => Number(formatUnits(v, 18));
-const money = (v: bigint) => n(v).toLocaleString("en-US", { maximumFractionDigits: 0 });
+const money = (v: bigint) => n(v).toLocaleString("en-US", { maximumFractionDigits: n(v) < 1000 && n(v) > 0 ? 1 : 0 });
 
 /**
  * The capital waterfall, drawn to scale. Cover sits in front (left), where losses arrive first;

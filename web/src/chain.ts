@@ -15,7 +15,10 @@ export const txUrl = (h: string) => `${EXPLORER}/tx/${h}`;
 export const addrUrl = (a: string) => `${EXPLORER}/address/${a}`;
 
 // VITE_RPC lets a local fork stand in for testnet during development; production uses the Mezo testnet RPC.
-export const client = createPublicClient({ chain: mezoTestnet, transport: http(import.meta.env.VITE_RPC || undefined) });
+export const client = createPublicClient({
+  chain: mezoTestnet,
+  batch: { multicall: true }, transport: http(import.meta.env.VITE_RPC || undefined, { retryCount: 4, retryDelay: 700, timeout: 15_000 }),
+});
 
 export type Deployment = {
   block: number;
@@ -43,6 +46,9 @@ export type DemoRun = {
   veBTCTokenId?: number;
   before?: { senior: string | number; junior: string | number; seniorPrice: string | number };
   after?: { senior: string | number; junior: string | number; seniorPrice: string | number };
+  loss?: { tx: string; recognized: string; byJunior: string; bySenior: string };
+  loss2?: { tx: string; recognized: string; byJunior: string; bySenior: string; seniorInterestBooked: string };
+  forgoneSeniorInterest?: string;
 };
 
 export async function loadDeployment(): Promise<{ d: Deployment | null; demo: DemoRun | null }> {

@@ -6,6 +6,7 @@ import {
   type DemoRun, type Deployment, type GaugeState, type LossEvent, type MarketState, type UserState,
 } from "./chain";
 import { Waterfall } from "./Waterfall";
+import { Explore } from "./Explore";
 
 /** Poll for a receipt for up to 3 minutes; Mezo's load-balanced RPC can briefly miss a mined tx. */
 async function waitReceipt(hash: Hex) {
@@ -42,11 +43,12 @@ function explain(e: unknown): string {
   if (err.code === 4001 || err.cause?.code === 4001 || /user rejected|denied/i.test(err.message ?? "")) return "You rejected the request in your wallet.";
   const name = err.cause?.data?.errorName ?? Object.keys(REASONS).find((k) => text.includes(k));
   if (name && REASONS[name]) return REASONS[name];
+  if (/insufficient collateral/i.test(err.message ?? "")) return "That would leave your loan under-collateralised. Repay first, or ask for less.";
   if (/insufficient liquidity/i.test(err.message ?? "")) return "Not enough unborrowed MUSD in this market right now. Try a smaller amount.";
   return text.split(/\r?\n/)[0];
 }
 
-type Route = { page: "markets" } | { page: "cosign" } | { page: "market"; vault: Address };
+type Route = { page: "explore" } | { page: "markets" } | { page: "cosign" } | { page: "market"; vault: Address };
 type Toast = { kind: "pending" | "ok" | "error"; text: string; tx?: Hex };
 
 const WAD = 10n ** 18n;
@@ -59,7 +61,8 @@ function parseRoute(): Route {
   const h = window.location.hash.replace(/^#\/?/, "");
   if (h.startsWith("market/")) return { page: "market", vault: h.slice(7) as Address };
   if (h === "cosign") return { page: "cosign" };
-  return { page: "markets" };
+  if (h === "markets") return { page: "markets" };
+  return { page: "explore" };
 }
 
 /** APRs from live chain state. Lender base = borrow APR x utilisation (Morpho fee is 0). */
@@ -237,7 +240,8 @@ export default function App() {
           Cosign
         </a>
         <nav>
-          <a href="#/" aria-current={route.page !== "cosign" ? "page" : undefined}>Markets</a>
+          <a href="#/" aria-current={route.page === "explore" ? "page" : undefined}>Explore demo</a>
+          <a href="#/markets" aria-current={route.page === "markets" || route.page === "market" ? "page" : undefined}>Markets</a>
           <a href="#/cosign" aria-current={route.page === "cosign" ? "page" : undefined}>Co-sign</a>
         </nav>
         <div className="net">
@@ -277,6 +281,10 @@ export default function App() {
           </section>
         )}
         {loadError && <p className="error-line">{loadError}</p>}
+        {d && route.page !== "explore" && markets.length === 0 && !loadError && (
+          <p className="muted" role="status">Reading the markets from Mezo testnet…</p>
+        )}
+        {d && route.page === "explore" && <Explore d={d} demo={demo} markets={markets} />}
         {d && markets.length > 0 && route.page === "markets" && <Markets {...ctx} />}
         {d && markets.length > 0 && route.page === "cosign" && <Cosign {...ctx} />}
         {d && markets.length > 0 && route.page === "market" && <MarketDetail {...ctx} vault={route.vault} />}
@@ -406,12 +414,12 @@ function MarketDetail(ctx: Ctx & { vault: Address }) {
   const m = markets.find((x) => x.vault.toLowerCase() === vault.toLowerCase());
   const myLosses = losses.filter((l) => l.vault.toLowerCase() === vault.toLowerCase());
   const [replay, setReplay] = useState<LossEvent | null>(null);
-  if (!m) return <p className="muted">Unknown market. <a href="#/">Back to markets</a></p>;
+  if (!m) return <p className="muted">Unknown market. <a href="#/markets">Back to markets</a></p>;
   const a = aprs(m);
 
   return (
     <>
-      <p className="crumb"><a href="#/">Markets</a> / {m.name}</p>
+      <p className="crumb"><a href="#/markets">Markets</a> / {m.name}</p>
       <section className="detail-head">
         <h1>{m.name}</h1>
         <p className="lede">
@@ -647,6 +655,7 @@ function BorrowPanel({ m, user, account, send, approveIfNeeded, connect, d, pric
   const [coll, setColl] = useState("");
   const [amt, setAmt] = useState("");
   const [rep, setRep] = useState("");
+  const [out, setOut] = useState("");
   const me = user?.perVault[m.vault];
   const debt = me && m.totalBorrow > 0n ? estimateDebt(me.borrowShares, m) : 0n;
   const collValue = me ? (me.collateral * price) / 10n ** 36n : 0n;
@@ -697,6 +706,20 @@ function BorrowPanel({ m, user, account, send, approveIfNeeded, connect, d, pric
               >Repay</button>
             </>
           )}
+          {me && me.collateral > 0n && (
+            <>
+              <label htmlFor="wcoll">Withdraw collateral</label>
+              <Amount id="wcoll" value={out} onChange={setOut} unit="MEZO" max={debt === 0n ? me.collateral : undefined} />
+              {debt > 0n && <p className="muted small">While you have debt, you can only take out collateral that is not backing it.</p>}
+              <button
+                className="secondary"
+                disabled={toWei(out) === 0n}
+                onClick={async () => {
+                  if (await send("Withdraw collateral", (w) => w.writeContract({ address: d.morpho, abi: morphoAbi, functionName: "withdrawCollateral", args: [m.params, toWei(out), account, account] }))) setOut("");
+                }}
+              >Withdraw collateral</button>
+            </>
+          )}
         </>
       )}
     </section>
@@ -720,7 +743,14 @@ function Cosign(ctx: Ctx) {
           Co-signers are veBTC holders who post MUSD cover on a market and vote MEZO rewards toward it. Your cover opens room
           for lenders and earns a premium on their interest. It is also the first money lost when a loan goes bad.
         </p>
-        <button onClick={connect}>Connect wallet</button>
+        <p className="muted">
+          To co-sign you need a wallet on Mezo testnet with some MUSD and a veBTC lock. This is a test network with a test
+          oracle; nothing here has value.
+        </p>
+        <p className="actions">
+          <button onClick={connect}>Connect wallet</button>{" "}
+          <a className="btn secondary" href="#/">Explore the demo without a wallet</a>
+        </p>
       </section>
     );
   }
