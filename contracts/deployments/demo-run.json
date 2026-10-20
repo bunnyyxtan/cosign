@@ -319,6 +319,46 @@
       "url": "https://explorer.test.mezo.org/tx/0xd7de26acdcaea2ebf90ff07abf5ce95c2cda25e8cd511f0e77fc2c742e9c5aba",
       "block": 16260793,
       "time": 1792492524
+    },
+    {
+      "label": "Fund co-signer with 60 MUSD for the browser recap test",
+      "actor": "deployer",
+      "tx": "0xd664536a0aa71c9cbb6d7cffe303b7504542fddf290e25b5cf6e191a6c6e4555",
+      "url": "https://explorer.test.mezo.org/tx/0xd664536a0aa71c9cbb6d7cffe303b7504542fddf290e25b5cf6e191a6c6e4555",
+      "block": 16260811,
+      "time": 1792492616
+    },
+    {
+      "label": "Deployer approves MEZO for gauge",
+      "actor": "deployer",
+      "tx": "0x8f62fc021f70b6269a29f0aa8dd35bc16be1ed9db180b92db2f37c724946b945",
+      "url": "https://explorer.test.mezo.org/tx/0x8f62fc021f70b6269a29f0aa8dd35bc16be1ed9db180b92db2f37c724946b945",
+      "block": 16260857,
+      "time": 1792492833
+    },
+    {
+      "label": "Deployer funds 10 MEZO rewards (self-funded, two markets)",
+      "actor": "deployer",
+      "tx": "0x25ac3e96d1d715019bd58bd8d977a07b3c62beb867ce179efbe3f6455314b2ea",
+      "url": "https://explorer.test.mezo.org/tx/0x25ac3e96d1d715019bd58bd8d977a07b3c62beb867ce179efbe3f6455314b2ea",
+      "block": 16260859,
+      "time": 1792492840
+    },
+    {
+      "label": "Gauge distributes epoch 3 MEZO across both markets",
+      "actor": "deployer",
+      "tx": "0x598ff367778f0d08958282610fd70e9b35d8a0d163623d24eaee0c7af2c1e75d",
+      "url": "https://explorer.test.mezo.org/tx/0x598ff367778f0d08958282610fd70e9b35d8a0d163623d24eaee0c7af2c1e75d",
+      "block": 16260905,
+      "time": 1792493060
+    },
+    {
+      "label": "Co-signer requests to withdraw 10% of Steady cover",
+      "actor": "cosigner",
+      "tx": "0x68aa620fc59ffd96394bf968909b5729102e7d02cd7c552d3ade913e286e8663",
+      "url": "https://explorer.test.mezo.org/tx/0x68aa620fc59ffd96394bf968909b5729102e7d02cd7c552d3ade913e286e8663",
+      "block": 16260972,
+      "time": 1792493379
     }
   ],
   "checks": [
@@ -533,6 +573,30 @@
       "pass": true,
       "detail": "deployer holds 360.6000 MUSD",
       "block": 16260794
+    },
+    {
+      "check": "Two-market split follows effective weight",
+      "pass": true,
+      "detail": "weights {'Bold': 451112268359727, 'Steady': 300741512239818}, sent Bold 6.0000 / Steady 4.0000 of 10 MEZO",
+      "block": 16260906
+    },
+    {
+      "check": "Withdrawal request recorded with a notice period",
+      "pass": true,
+      "detail": "ready at 1792493975 (594s from now), 15000000000000000000000000 shares",
+      "block": 16260972
+    },
+    {
+      "check": "Cover cannot be withdrawn before the notice period ends",
+      "pass": true,
+      "detail": "eth_call withdrawJunior -> - server returned an error response: error code 3: execution reverted, data: \"0x5a8f69d5000000000000000000000000000000000000000000000000000000006ad74997\"",
+      "block": 16260973
+    },
+    {
+      "check": "Accounts without a request cannot withdraw cover",
+      "pass": true,
+      "detail": "eth_call withdrawJunior from lender -> - server returned an error response: error code 3: execution reverted, data: \"0xcffd93ac\"",
+      "block": 16260973
     }
   ],
   "startPrice": "10000000000000000000000000000000000000",
@@ -569,5 +633,6 @@
     "byJunior": "60100081050261155237",
     "bySenior": "0",
     "seniorInterestBooked": "55286672002047"
-  }
+  },
+  "rewardEpoch2": 3
 }

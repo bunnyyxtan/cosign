@@ -442,5 +442,55 @@ def stage_topup():
 
 STAGES["topup"] = stage_topup
 
+
+def stage_browser_funds():
+    """Give the co-signer MUSD to recapitalise Bold from the browser UI."""
+    send("Fund co-signer with 60 MUSD for the browser recap test", "DEPLOYER", D["musd"], "transfer(address,uint256)", addr("COSIGNER"), wad(60))
+
+
+STAGES["browser-funds"] = stage_browser_funds
+
+
+def stage_fund_epoch():
+    """Fund the current epoch with 10 MEZO so a two-market distribution and a UI claim can be tested."""
+    g = D["gauge"]
+    send("Deployer approves MEZO for gauge", "DEPLOYER", D["mezo"], "approve(address,uint256)", g, wad(10))
+    send("Deployer funds 10 MEZO rewards (self-funded, two markets)", "DEPLOYER", g, "fund(uint256)", wad(10))
+    run["rewardEpoch2"] = num(g, "currentEpoch()(uint256)")
+    save()
+    print("   epoch", run["rewardEpoch2"], "ends", num(g, "epochEnd(uint256)(uint256)", run["rewardEpoch2"]))
+
+
+def stage_distribute2():
+    g, e = D["gauge"], run["rewardEpoch2"]
+    if num(g, "currentEpoch()(uint256)") <= e:
+        raise SystemExit("epoch not over yet")
+    w = {n: num(g, "weightOf(address)(uint256)", D[k]) for n, k in (("Bold", "vaultBold"), ("Steady", "vaultSteady"))}
+    b0 = {n: num(D["mezo"], "balanceOf(address)(uint256)", D[k]) for n, k in (("Bold", "vaultBold"), ("Steady", "vaultSteady"))}
+    send(f"Gauge distributes epoch {e} MEZO across both markets", "DEPLOYER", g, "distribute(uint256)", e)
+    got = {n: num(D["mezo"], "balanceOf(address)(uint256)", D[k]) - b0[n] for n, k in (("Bold", "vaultBold"), ("Steady", "vaultSteady"))}
+    total = sum(w.values())
+    check("Two-market split follows effective weight", all(abs(got[n] - wad(10) * w[n] // total) <= 2 for n in w) and sum(got.values()) <= wad(10),
+          f"weights {w}, sent Bold {fmt(got['Bold'])} / Steady {fmt(got['Steady'])} of 10 MEZO")
+
+
+def stage_withdraw_rules():
+    """Live check of the cover exit rules on Steady: notice period, and no instant exit."""
+    v = D["vaultSteady"]
+    shares = num(v, "juniorSharesOf(address)(uint256)", addr("COSIGNER"))
+    send("Co-signer requests to withdraw 10% of Steady cover", "COSIGNER", v, "requestJuniorWithdraw(uint256)", shares // 10)
+    req = call(v, "withdrawRequests(address)(uint64,uint64,uint256)", addr("COSIGNER")).splitlines()
+    ready = int(req[1].split(" ")[0])
+    check("Withdrawal request recorded with a notice period", ready > int(time.time()), f"ready at {ready} ({ready - int(time.time())}s from now), {req[2].split(' ')[0]} shares")
+    reason = reverts_with("COSIGNER", v, "withdrawJunior()")
+    check("Cover cannot be withdrawn before the notice period ends", reason != "", f"eth_call withdrawJunior -> {reason}")
+    reason = reverts_with("LENDER", v, "withdrawJunior()")
+    check("Accounts without a request cannot withdraw cover", reason != "", f"eth_call withdrawJunior from lender -> {reason}")
+
+
+STAGES["withdraw-rules"] = stage_withdraw_rules
+STAGES["fund-epoch"] = stage_fund_epoch
+STAGES["distribute2"] = stage_distribute2
+
 if __name__ == "__main__":
     STAGES[sys.argv[1]]()
