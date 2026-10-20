@@ -55,5 +55,14 @@ def exit_b():
     print("deployer now holds", demo.fmt(demo.balance(V1["musd"], "DEPLOYER")), "MUSD and", demo.fmt(demo.balance(V1["mezo"], "DEPLOYER")), "MEZO")
 
 
+def exit_dust():
+    """v1 bug workaround: 1 wei of senior dust with zero shares blocks a full cover exit (Undercovered),
+    so request all but 1e9 shares (well under 1e-12 MUSD) and leave that dust behind."""
+    for name, v in VAULTS:
+        sh = num(v, "juniorSharesOf(address)(uint256)", addr("COSIGNER"))
+        if sh > 10**9:
+            send(f"v1: co-signer requests all cover but dust ({name})", "COSIGNER", v, "requestJuniorWithdraw(uint256)", sh - 10**9)
+
+
 if __name__ == "__main__":
-    {"exit-a": exit_a, "exit-b": exit_b}[sys.argv[1]]()
+    {"exit-a": exit_a, "exit-b": exit_b, "exit-dust": exit_dust}[sys.argv[1]]()
