@@ -174,3 +174,11 @@ td { padding: 10px 8px 10px 0; border-bottom: 1px solid var(--line); }
 footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); max-width: 90ch; }
 footer strong { color: var(--ink); }
 .addrs a { color: var(--muted); }
+
+.history h2.sub { margin-top: 28px; font-size: 18px; }
+.checks { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; font-size: 14px; }
+.checks li { display: grid; grid-template-columns: 52px 1fr; gap: 10px; align-items: baseline; }
+.mark-pf { font-weight: 600; font-size: 13px; }
+.checks li.pass .mark-pf { color: #2f8f5b; }
+.checks li.fail .mark-pf { color: var(--loss); }
+.checks .muted { overflow-wrap: anywhere; }

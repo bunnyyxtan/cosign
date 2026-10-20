@@ -28,11 +28,18 @@ export type Deployment = {
   gauge: Address;
   vaultSteady: Address;
   vaultBold: Address;
+  liquidator?: Address;
 };
 
+const ZERO = "0x0000000000000000000000000000000000000000";
+/** Markets deployed so far (Bold first; Steady is added after Bold passes the full cycle). */
+export const deployedVaults = (d: Deployment) => [d.vaultBold, d.vaultSteady].filter((v) => v && v !== ZERO) as Address[];
+
 export type DemoStep = { label: string; actor: string; tx: Hex; url: string; block: number; time: number };
+export type DemoCheck = { check: string; pass: boolean; detail: string; block: number; note?: string };
 export type DemoRun = {
   steps: DemoStep[];
+  checks?: DemoCheck[];
   veBTCTokenId?: number;
   before?: { senior: string | number; junior: string | number; seniorPrice: string | number };
   after?: { senior: string | number; junior: string | number; seniorPrice: string | number };
@@ -153,7 +160,7 @@ export type MarketState = {
 export type GaugeState = { epoch: bigint; epochEnd: bigint; budget: bigint; totalWeight: bigint };
 
 export async function loadMarkets(d: Deployment): Promise<{ markets: MarketState[]; gauge: GaugeState; price: bigint }> {
-  const vaults = [d.vaultSteady, d.vaultBold];
+  const vaults = deployedVaults(d);
   const fields = [
     "name", "previewBooks", "capacity", "coverageBps", "isUndercovered", "seniorSharePrice", "juniorSharePrice",
     "juniorRound", "maxLeverage", "premiumBps", "rewardJuniorBps", "cooldown", "marketId", "lltv", "marketParams",
@@ -317,7 +324,7 @@ export async function loadLosses(d: Deployment): Promise<LossEvent[]> {
   for (let from = BigInt(d.block); from <= latest; from += step) {
     const to = from + step - 1n > latest ? latest : from + step - 1n;
     const logs = await client.getContractEvents({
-      address: [d.vaultSteady, d.vaultBold],
+      address: deployedVaults(d),
       abi: vaultAbi,
       eventName: "LossAbsorbed",
       fromBlock: from,

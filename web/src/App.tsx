@@ -7,6 +7,18 @@ import {
 } from "./chain";
 import { Waterfall } from "./Waterfall";
 
+/** Poll for a receipt for up to 3 minutes; Mezo's load-balanced RPC can briefly miss a mined tx. */
+async function waitReceipt(hash: Hex) {
+  for (let i = 0; i < 90; i++) {
+    try {
+      return await client.getTransactionReceipt({ hash });
+    } catch {
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+  throw new Error("No receipt after 3 minutes. Check the transaction in the explorer.");
+}
+
 type Route = { page: "markets" } | { page: "cosign" } | { page: "market"; vault: Address };
 type Toast = { kind: "pending" | "ok" | "error"; text: string; tx?: Hex };
 
@@ -109,10 +121,15 @@ export default function App() {
         setToast({ kind: "pending", text: `${label}: confirm in your wallet` });
         const hash = await write(walletClient(account));
         setToast({ kind: "pending", text: `${label}: waiting for Mezo testnet`, tx: hash });
-        const r = await client.waitForTransactionReceipt({ hash });
+        const r = await waitReceipt(hash);
         if (r.status !== "success") throw new Error("Transaction reverted");
         setToast({ kind: "ok", text: `${label}: done`, tx: hash });
+        // The load-balanced RPC can trail the receipt: wait until it has the tx's block, then read (and read once more).
+        for (let i = 0; i < 15 && (await client.getBlockNumber().catch(() => 0n)) < r.blockNumber + 1n; i++) {
+          await new Promise((res) => setTimeout(res, 1500));
+        }
         await refresh();
+        setTimeout(refresh, 5000);
         if (d) loadLosses(d).then(setLosses);
         return true;
       } catch (e) {
@@ -188,8 +205,11 @@ export default function App() {
         {d && (
           <p className="addrs">
             Contracts: <a href={addrUrl(d.morpho)} target="_blank" rel="noreferrer">Morpho Blue</a>,{" "}
-            <a href={addrUrl(d.vaultSteady)} target="_blank" rel="noreferrer">Steady vault</a>,{" "}
             <a href={addrUrl(d.vaultBold)} target="_blank" rel="noreferrer">Bold vault</a>,{" "}
+            {d.vaultSteady !== "0x0000000000000000000000000000000000000000" && (
+              <><a href={addrUrl(d.vaultSteady)} target="_blank" rel="noreferrer">Steady vault</a>,{" "}</>
+            )}
+            {d.liquidator && <><a href={addrUrl(d.liquidator)} target="_blank" rel="noreferrer">liquidator</a>,{" "}</>}
             <a href={addrUrl(d.gauge)} target="_blank" rel="noreferrer">gauge</a>,{" "}
             <a href={addrUrl(d.oracle)} target="_blank" rel="noreferrer">demo oracle</a>,{" "}
             <a href={addrUrl(d.veBTC)} target="_blank" rel="noreferrer">Mezo veBTC</a>
@@ -324,10 +344,15 @@ function MarketDetail(ctx: Ctx & { vault: Address }) {
           <Fig k="Covered for the first" v={pct(m.coverageBps)} sub="of losses" strong />
           <Fig k="Cover" v={`${fmt(m.junior)} MUSD`} />
           <Fig k="Lender deposits" v={`${fmt(m.senior)} MUSD`} />
-          <Fig k="Lender share value" v={fmt(m.seniorPrice, 6)} sub="MUSD per starting MUSD" />
+          <Fig k="Lender share value" v={fmt(m.seniorPrice, 9)} sub="MUSD per starting MUSD" />
           <Fig k="Lender APR" v={apr(a.senior)} />
           <Fig k="Co-signer APR" v={apr(a.junior)} />
         </dl>
+        <p className="muted small">
+          Room to lend ({fmt(m.capacity, 0)} MUSD) limits deposits into this Cosign vault. It is not a cap on borrowing in the
+          underlying Morpho market, which anyone can also supply to directly, without cover.
+        </p>
+        {m.undercovered && <p className="warn">Under-covered after a loss: new lender deposits and cover withdrawals are paused until cover is added.</p>}
         {m.round > 0n && <p className="muted">Cover was wiped {m.round.toString()} time(s) and then recapitalised. Old cover shares were retired.</p>}
       </section>
 
@@ -420,6 +445,20 @@ function DemoSteps({ demo }: { demo: DemoRun }) {
           </li>
         ))}
       </ol>
+      {demo.checks && demo.checks.length > 0 && (
+        <>
+          <h2 className="sub">Checks recorded during the run</h2>
+          <p className="muted">Each check read live contract state at the block shown. Failures are kept, with what we changed.</p>
+          <ul className="checks">
+            {demo.checks.map((c, i) => (
+              <li key={i} className={c.pass ? "pass" : "fail"}>
+                <span className="mark-pf">{c.pass ? "Pass" : "Fail"}</span>
+                <span><strong>{c.check}</strong> <span className="muted">{c.detail}</span>{c.note && <em className="note"> {c.note}</em>}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </section>
   );
 }
@@ -464,7 +503,7 @@ function LendPanel({ m, user, account, send, approveIfNeeded, connect, d }: Ctx 
               if (await send("Deposit MUSD", (w) => w.writeContract({ address: m.vault, abi: vaultAbi, functionName: "depositSenior", args: [depWei] }))) setDep("");
             }}
           >Deposit</button>
-          <p className="held">You have {fmt(me?.senior ?? 0n)} MUSD here. Wallet: {fmt(user?.musd ?? 0n)} MUSD.</p>
+          <p className="held">{user ? `You have ${fmt(me?.senior ?? 0n)} MUSD here. Wallet: ${fmt(user.musd)} MUSD.` : "Loading your position…"}</p>
           {me && me.seniorShares > 0n && (
             <>
               <label htmlFor="wd">Withdraw</label>
@@ -616,7 +655,7 @@ function CoverPanel({ m, user, send, approveIfNeeded, d }: Ctx & { m: MarketStat
     <section className="panel">
       <h2>{m.name}</h2>
       <Waterfall senior={m.senior} junior={m.junior} scale={m.senior + m.junior + m.capacity} capacity={m.capacity} />
-      <p className="held">Your cover: {fmt(me?.junior ?? 0n)} MUSD. Market cover: {fmt(m.junior)} MUSD, {pct(m.coverageBps)} of the vault.</p>
+      <p className="held">{user ? `Your cover: ${fmt(me?.junior ?? 0n)} MUSD.` : "Loading your cover…"} Market cover: {fmt(m.junior)} MUSD, {pct(m.coverageBps)} of the vault.</p>
       <label htmlFor={`cov-${m.vault}`}>Post cover</label>
       <Amount id={`cov-${m.vault}`} value={dep} onChange={setDep} unit="MUSD" max={user?.musd} />
       {opens > 0n && <p className="muted small">Opens room for up to {fmt(opens, 0)} MUSD of lender deposits.</p>}
