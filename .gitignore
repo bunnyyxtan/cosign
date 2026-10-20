@@ -14,3 +14,5 @@ web/.env*.local
 contracts/broadcast/**/run-*.json
 contracts/broadcast/**/*.lock
 __pycache__/
+research/
+graphify-out/
