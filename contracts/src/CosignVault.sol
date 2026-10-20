@@ -153,6 +153,7 @@ contract CosignVault is ReentrancyGuard {
     function setGauge(address g) external {
         if (msg.sender != deployer) revert OnlyDeployer();
         if (gauge != address(0)) revert GaugeAlreadySet();
+        if (g == address(0)) revert ZeroAmount();
         gauge = g;
         emit GaugeSet(g);
     }

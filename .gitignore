@@ -9,3 +9,4 @@ web/dist/
 web/public/*.json
 .claude/
 web/node_modules/
+contracts/cache/
