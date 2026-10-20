@@ -348,6 +348,11 @@ contract CosignVault is ReentrancyGuard {
         uint256 book = s + j;
         if (total > book) {
             interest = total - book;
+            if (totalJuniorShares == 0) {
+                // No live cover: lenders keep all interest; no premium is owed for cover that does not exist.
+                s += interest;
+                return (s, j, interest, 0);
+            }
             uint256 sPart = book == 0 ? 0 : interest.mulDiv(s, book);
             uint256 premium = sPart.mulDiv(premiumBps, BPS);
             s += sPart - premium;
