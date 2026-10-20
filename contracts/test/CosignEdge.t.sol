@@ -9,6 +9,7 @@ import {CosignVault} from "../src/CosignVault.sol";
 import {CosignGauge} from "../src/CosignGauge.sol";
 import {CosignLiquidator, ISyncableVault} from "../src/CosignLiquidator.sol";
 import {CosignSetup} from "./Cosign.t.sol";
+import {stdStorage, StdStorage} from "forge-std/StdStorage.sol";
 
 /// MUSD stand-in that re-enters a target during transferFrom, to prove the vault's reentrancy guard.
 contract ReentrantToken is ERC20 {
@@ -43,6 +44,7 @@ contract ReentrantToken is ERC20 {
 
 contract CosignEdgeTest is CosignSetup {
     using MarketParamsLib for MarketParams;
+    using stdStorage for StdStorage;
 
     function _newVault(address loan, uint256 lltv) internal returns (CosignVault v) {
         if (!morpho.isLltvEnabled(lltv)) morpho.enableLltv(lltv);
@@ -306,6 +308,54 @@ contract CosignEdgeTest is CosignSetup {
         vm.expectRevert(ReentrancyGuard.ReentrancyGuardReentrantCall.selector);
         rv.depositJunior(100e18);
         vm.stopPrank();
+    }
+
+    // ------------------------------------------------------- dust exits
+
+    /// Found on testnet (v1 Bold and Steady): after every lender left, 1 wei of senior book remained with zero
+    /// senior shares, and the coverage check then blocked the last co-signer's full exit with Undercovered.
+    /// The exact rounding path did not reproduce under fuzzing, so this pins the observed state directly.
+    function test_SeniorDustWithNoLenders_DoesNotBlockLastCosignerExit() public {
+        _junior(cosigner, 100e18);
+        _senior(lender, 1_000e18);
+        uint256 sh = vault.seniorShares(lender);
+        vm.prank(lender);
+        vault.withdrawSenior(sh);
+        assertEq(vault.totalSeniorShares(), 0);
+        stdstore.target(address(vault)).sig("seniorAssets()").checked_write(uint256(1)); // the testnet state
+        uint256 j = vault.juniorSharesOf(cosigner);
+        vm.prank(cosigner);
+        vault.requestJuniorWithdraw(j);
+        vm.warp(block.timestamp + 1 hours);
+        vm.prank(cosigner);
+        vault.withdrawJunior();
+        assertEq(vault.juniorSharesOf(cosigner), 0, "last co-signer is fully out");
+        assertFalse(vault.isUndercovered(), "no lenders means nothing to be undercovered against");
+    }
+
+    function testFuzz_LastCosignerCanFullyExit(uint256 cover, uint256 lend, uint256 borrowAmt, uint256 dt) public {
+        cover = bound(cover, 1e15, 10_000e18);
+        lend = bound(lend, 1e15, cover * 19);
+        borrowAmt = bound(borrowAmt, 1e15, (cover + lend) * 9 / 10);
+        dt = bound(dt, 1, 400 days);
+        _junior(cosigner, cover);
+        _senior(lender, lend);
+        _borrow(borrowAmt * 2, borrowAmt);
+        vm.warp(block.timestamp + dt);
+        vm.startPrank(borrower);
+        musd.approve(address(morpho), type(uint256).max);
+        morpho.repay(mp, 0, morpho.position(mp.id(), borrower).borrowShares, borrower, "");
+        vm.stopPrank();
+        uint256 sh = vault.seniorShares(lender);
+        vm.prank(lender);
+        vault.withdrawSenior(sh);
+        uint256 j = vault.juniorSharesOf(cosigner);
+        vm.prank(cosigner);
+        vault.requestJuniorWithdraw(j);
+        vm.warp(block.timestamp + 1 hours);
+        vm.prank(cosigner);
+        vault.withdrawJunior();
+        assertEq(vault.juniorSharesOf(cosigner), 0);
     }
 
     // ------------------------------------------------------------ rounding

@@ -190,6 +190,7 @@ contract CosignVault is ReentrancyGuard {
     }
 
     function isUndercovered() public view returns (bool) {
+        if (totalSeniorShares == 0) return false;
         (uint256 s, uint256 j) = previewBooks();
         return s > j * maxLeverage;
     }
@@ -302,7 +303,8 @@ contract CosignVault is ReentrancyGuard {
             if (ICosignGaugeVotes(gauge).accountVotes(address(this), msg.sender) != 0) revert VotesActive();
         }
         assets = _toAssets(shares, juniorAssets, totalJuniorShares);
-        if (seniorAssets > (juniorAssets - assets) * maxLeverage) revert Undercovered();
+        // Only lenders who hold shares need cover; rounding dust left after every lender exits must not trap cover.
+        if (totalSeniorShares > 0 && seniorAssets > (juniorAssets - assets) * maxLeverage) revert Undercovered();
         delete withdrawRequests[msg.sender];
         _junior[msg.sender].shares = held - shares;
         totalJuniorShares -= shares;
