@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatUnits, parseUnits, type Address, type Hex } from "viem";
 import {
-  addrUrl, client, connectWallet, ensureChain, erc20Abi, gaugeAbi, loadDeployment, loadLosses, loadMarkets, loadUser,
-  morphoAbi, txUrl, vaultAbi, walletClient,
+  addrUrl, client, connectWallet, disconnectWallet, ensureChain, erc20Abi, gaugeAbi, loadDeployment, loadLosses, loadMarkets,
+  loadUser, mezoTestnet, morphoAbi, txUrl, vaultAbi, walletChainId, walletClient,
   type DemoRun, type Deployment, type GaugeState, type LossEvent, type MarketState, type UserState,
 } from "./chain";
 import { Waterfall } from "./Waterfall";
@@ -17,6 +17,33 @@ async function waitReceipt(hash: Hex) {
     }
   }
   throw new Error("No receipt after 3 minutes. Check the transaction in the explorer.");
+}
+
+/** Plain-language reasons for the reverts a user can hit. Unknown errors fall back to the wallet's message. */
+const REASONS: Record<string, string> = {
+  CapacityExceeded: "There isn't that much room to lend. Room opens as co-signers add cover.",
+  Undercovered: "That withdrawal would leave lenders with less than the minimum cover.",
+  NotReady: "Your withdrawal notice period has not ended yet.",
+  RequestExpired: "Your withdrawal window closed. Request again.",
+  RequestVoid: "Your request was cancelled because this market's cover was wiped out.",
+  NoRequest: "Request a withdrawal first.",
+  InsufficientShares: "You don't hold that much here.",
+  VotesActive: "Remove your votes on this market before withdrawing all of your cover.",
+  NoCover: "Post cover on a market before voting for it.",
+  AlreadyVoted: "This veBTC position already voted this epoch.",
+  NotApproved: "This wallet doesn't own that veBTC position.",
+  NoPower: "This veBTC position has no voting power.",
+  ZeroAmount: "Enter a larger amount.",
+};
+
+function explain(e: unknown): string {
+  const err = e as { shortMessage?: string; message?: string; code?: number; cause?: { code?: number; data?: { errorName?: string } } };
+  const text = err.shortMessage ?? err.message ?? "Something went wrong";
+  if (err.code === 4001 || err.cause?.code === 4001 || /user rejected|denied/i.test(err.message ?? "")) return "You rejected the request in your wallet.";
+  const name = err.cause?.data?.errorName ?? Object.keys(REASONS).find((k) => text.includes(k));
+  if (name && REASONS[name]) return REASONS[name];
+  if (/insufficient liquidity/i.test(err.message ?? "")) return "Not enough unborrowed MUSD in this market right now. Try a smaller amount.";
+  return text.split(/\r?\n/)[0];
 }
 
 type Route = { page: "markets" } | { page: "cosign" } | { page: "market"; vault: Address };
@@ -62,6 +89,7 @@ export default function App() {
   const [user, setUser] = useState<UserState | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [chainId, setChainId] = useState<number | null>(null);
 
   useEffect(() => {
     const f = () => setRoute(parseRoute());
@@ -106,14 +134,43 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    window.ethereum?.on?.("accountsChanged", (a) => setAccount(((a as Address[])[0] ?? null) as Address | null));
+    const eth = window.ethereum;
+    if (!eth) return;
+    walletChainId().then(setChainId).catch(() => {});
+    const onAccounts = (a: unknown) => {
+      setUser(null); // never show the previous account's positions
+      setAccount(((a as Address[])[0] ?? null) as Address | null);
+    };
+    const onChain = (id: unknown) => setChainId(parseInt(id as string, 16));
+    eth.on?.("accountsChanged", onAccounts);
+    eth.on?.("chainChanged", onChain);
+    return () => {
+      eth.removeListener?.("accountsChanged", onAccounts);
+      eth.removeListener?.("chainChanged", onChain);
+    };
   }, []);
 
   const connect = async () => {
     try {
       setAccount(await connectWallet());
+      setChainId(await walletChainId());
     } catch (e) {
-      setToast({ kind: "error", text: (e as Error).message });
+      setToast({ kind: "error", text: explain(e) });
+    }
+  };
+
+  const disconnect = async () => {
+    await disconnectWallet();
+    setAccount(null);
+    setUser(null);
+  };
+
+  const switchNetwork = async () => {
+    try {
+      await ensureChain();
+      setChainId(await walletChainId());
+    } catch (e) {
+      setToast({ kind: "error", text: explain(e) });
     }
   };
 
@@ -127,7 +184,10 @@ export default function App() {
         const hash = await write(walletClient(account));
         setToast({ kind: "pending", text: `${label}: waiting for Mezo testnet`, tx: hash });
         const r = await waitReceipt(hash);
-        if (r.status !== "success") throw new Error("Transaction reverted");
+        if (r.status !== "success") {
+          setToast({ kind: "error", text: `${label}: the transaction was mined but reverted. Nothing changed.`, tx: hash });
+          return false;
+        }
         setToast({ kind: "ok", text: `${label}: done`, tx: hash });
         // The load-balanced RPC can trail the receipt: wait until it has the tx's block, then read (and read once more).
         for (let i = 0; i < 15 && (await client.getBlockNumber().catch(() => 0n)) < r.blockNumber + 1n; i++) {
@@ -138,8 +198,7 @@ export default function App() {
         if (d) loadLosses(d).then(setLosses);
         return true;
       } catch (e) {
-        const msg = (e as { shortMessage?: string }).shortMessage ?? (e as Error).message;
-        setToast({ kind: "error", text: `${label}: ${msg.split("\n")[0]}` });
+        setToast({ kind: "error", text: `${label}: ${explain(e)}` });
         return false;
       }
     },
@@ -152,7 +211,15 @@ export default function App() {
       if (!account) return false;
       const allowance = await client.readContract({ address: token, abi: erc20Abi, functionName: "allowance", args: [account, spender] });
       if (allowance >= amount) return true;
-      return send(`Approve ${label}`, (w) => w.writeContract({ address: token, abi: erc20Abi, functionName: "approve", args: [spender, amount] }));
+      const ok = await send(`Approve ${label}`, (w) => w.writeContract({ address: token, abi: erc20Abi, functionName: "approve", args: [spender, amount] }));
+      if (!ok) return false;
+      // Wallets let users edit the spending cap; check what was actually approved.
+      const now = await client.readContract({ address: token, abi: erc20Abi, functionName: "allowance", args: [account, spender] });
+      if (now < amount) {
+        setToast({ kind: "error", text: `Approve ${label}: the approved amount is lower than ${fmt(amount)}. Approve at least that much.` });
+        return false;
+      }
+      return true;
     },
     [account, send],
   );
@@ -175,9 +242,23 @@ export default function App() {
         </nav>
         <div className="net">
           <span className="badge">Mezo testnet</span>
-          {account ? <span className="acct">{short(account)}</span> : <button onClick={connect}>Connect wallet</button>}
+          {account ? (
+            <>
+              <span className="acct">{short(account)}</span>
+              <button className="link" onClick={disconnect}>Disconnect</button>
+            </>
+          ) : (
+            <button onClick={connect}>Connect wallet</button>
+          )}
         </div>
       </header>
+
+      {account && chainId !== null && chainId !== mezoTestnet.id && (
+        <div className="toast error" role="alert">
+          <span>Your wallet is on another network. Cosign runs on Mezo testnet.</span>
+          <button className="secondary" onClick={switchNetwork}>Switch to Mezo testnet</button>
+        </div>
+      )}
 
       {toast && (
         <div className={`toast ${toast.kind}`} role="status">
@@ -249,8 +330,8 @@ function Markets({ markets, gauge, price, losses }: Ctx) {
         <h1>Co-signers put money in front of lenders.</h1>
         <p className="lede">
           Bitcoin holders post MUSD as cover on a lending market. A market can only take lender deposits up to a fixed
-          multiple of its cover. Co-signers earn a cut of the interest and MEZO rewards, and if a loan goes bad, their
-          cover pays before any lender does.
+          multiple of its cover. Co-signers earn a cut of the interest and MEZO rewards. If a loan goes bad, the loss
+          comes out of their cover first; lenders are only hit by the part that is larger than the cover.
         </p>
         <Legend />
       </section>
@@ -271,7 +352,7 @@ function Markets({ markets, gauge, price, losses }: Ctx) {
               </div>
               <Waterfall senior={m.senior} junior={m.junior} scale={scale} capacity={m.capacity} />
               <dl className="figures">
-                <Fig k="Covered for the first" v={pct(m.coverageBps)} sub="of losses" strong />
+                <Fig k="Cover absorbs the first" v={`${fmt(m.junior, 0)} MUSD`} sub={`of losses (${pct(m.coverageBps)} of the vault)`} strong />
                 <Fig k="Room to lend" v={`${fmt(m.capacity, 0)} MUSD`} />
                 <Fig k="Lender APR" v={apr(a.senior)} sub={`${(a.util * 100).toFixed(0)}% borrowed`} />
                 <Fig k="Co-signer APR" v={apr(a.junior)} sub="before MEZO" />
@@ -346,7 +427,7 @@ function MarketDetail(ctx: Ctx & { vault: Address }) {
           <Waterfall senior={m.senior} junior={m.junior} scale={m.senior + m.junior + m.capacity} capacity={m.capacity} large />
         )}
         <dl className="figures">
-          <Fig k="Covered for the first" v={pct(m.coverageBps)} sub="of losses" strong />
+          <Fig k="Cover absorbs the first" v={`${fmt(m.junior, 0)} MUSD`} sub={`of losses (${pct(m.coverageBps)} of the vault)`} strong />
           <Fig k="Cover" v={`${fmt(m.junior)} MUSD`} />
           <Fig k="Lender deposits" v={`${fmt(m.senior)} MUSD`} />
           <Fig k="Lender share value" v={fmt(m.seniorPrice, 9)} sub="MUSD per starting MUSD" />
@@ -357,8 +438,36 @@ function MarketDetail(ctx: Ctx & { vault: Address }) {
           Room to lend ({fmt(m.capacity, 0)} MUSD) limits deposits into this Cosign vault. It is not a cap on borrowing in the
           underlying Morpho market, which anyone can also supply to directly, without cover.
         </p>
-        {m.undercovered && <p className="warn">Under-covered after a loss: new lender deposits and cover withdrawals are paused until cover is added.</p>}
+        {m.undercovered && (
+          <p className="warn">
+            Under-covered after a loss: new lender deposits and cover withdrawals are paused until cover is added. Borrowing
+            on Morpho is not paused.
+          </p>
+        )}
         {m.round > 0n && <p className="muted">Cover was wiped {m.round.toString()} time(s) and then recapitalised. Old cover shares were retired.</p>}
+      </section>
+
+      <section className="guarantee" aria-labelledby="g-title">
+        <h2 id="g-title">What cover does and does not guarantee</h2>
+        <div className="g-cols">
+          <div>
+            <h3>The contracts enforce</h3>
+            <ul>
+              <li>A loss is taken from cover first. Lenders are charged only for the part of a loss larger than the cover in front of them.</li>
+              <li>A lender's balance as of the vault's last update is not reduced until losses since then exceed that cover.</li>
+              <li>Every recognised loss is split between cover and lenders with nothing created or lost (see the LossAbsorbed events below).</li>
+            </ul>
+          </div>
+          <div>
+            <h3>They do not guarantee</h3>
+            <ul>
+              <li>Interest earned since the vault's last update. If a liquidation skips Cosign's liquidator, that interest can absorb part of the loss first; it moves to co-signers.</li>
+              <li>Protection beyond the cover. If a loss is larger, lenders still in the vault share the rest; lenders who withdrew before the liquidation are not charged.</li>
+              <li>That cover stays. A co-signer whose withdrawal notice has ended can leave before a loss is booked.</li>
+              <li>A borrowing limit. Cosign caps deposits into this vault, not borrowing in the Morpho market. The MEZO price comes from a demo oracle the Cosign team controls.</li>
+            </ul>
+          </div>
+        </div>
       </section>
 
       <div className="cols">
@@ -495,7 +604,10 @@ function LendPanel({ m, user, account, send, approveIfNeeded, connect, d }: Ctx 
   return (
     <section className="panel">
       <h2>Lend MUSD</h2>
-      <p className="muted">Your deposit sits behind {fmt(m.junior)} MUSD of cover. You lose money only if losses exceed it.</p>
+      <p className="muted">
+        {fmt(m.junior)} MUSD of cover sits in front of lenders. A loss comes out of cover first; lenders lose money only
+        when a loss is larger than the cover.
+      </p>
       {!account ? <button onClick={connect}>Connect wallet to lend</button> : (
         <>
           <label htmlFor="lend">Deposit</label>
@@ -621,7 +733,9 @@ function Cosign(ctx: Ctx) {
           <p>
             Your cover pays first. If a liquidation leaves bad debt, it is taken from cover before any lender loses money, and
             you can lose all of it. Leaving takes a {Number(markets[0].cooldown) / 60}-minute notice, and you cannot leave if
-            that would drop the market below its minimum cover.
+            that would drop the market below its minimum cover. Co-signers whose notice has already ended can leave before a
+            loss is booked, which leaves more of that loss to the cover that stays. Votes count per market: a market's votes are
+            capped by its total cover, not by yours alone.
           </p>
         </div>
       </section>

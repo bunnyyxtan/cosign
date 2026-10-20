@@ -89,6 +89,15 @@ export const vaultAbi = parseAbi([
   "function claimRewards() returns (uint256)",
   "function sync()",
   "event LossAbsorbed(uint256 loss, uint256 byJunior, uint256 bySenior, uint256 seniorAssetsAfter, uint256 juniorAssetsAfter)",
+  "error ZeroAmount()",
+  "error CapacityExceeded(uint256 capacity)",
+  "error Undercovered()",
+  "error NoRequest()",
+  "error RequestVoid()",
+  "error NotReady(uint64 readyAt)",
+  "error RequestExpired()",
+  "error InsufficientShares()",
+  "error VotesActive()",
   "event JuniorWiped(uint64 endedRound, uint256 dustCarried)",
 ]);
 
@@ -105,6 +114,12 @@ export const gaugeAbi = parseAbi([
   "function vote(uint256 tokenId, address[] targets, uint256[] weights)",
   "function reset(uint256 tokenId)",
   "event Distributed(uint256 indexed epoch, address indexed vault, uint256 weight, uint256 amount)",
+  "error NotApproved()",
+  "error AlreadyVoted()",
+  "error BadInput()",
+  "error UnknownVault()",
+  "error NoCover()",
+  "error NoPower()",
 ]);
 
 export const morphoAbi = parseAbi([
@@ -342,7 +357,11 @@ export async function loadLosses(d: Deployment): Promise<LossEvent[]> {
 
 declare global {
   interface Window {
-    ethereum?: { request: (a: { method: string; params?: unknown[] }) => Promise<unknown>; on?: (e: string, f: (...a: unknown[]) => void) => void };
+    ethereum?: {
+      request: (a: { method: string; params?: unknown[] }) => Promise<unknown>;
+      on?: (e: string, f: (...a: unknown[]) => void) => void;
+      removeListener?: (e: string, f: (...a: unknown[]) => void) => void;
+    };
   }
 }
 
@@ -353,25 +372,45 @@ export async function connectWallet(): Promise<Address> {
   return account;
 }
 
+export async function walletChainId(): Promise<number | null> {
+  if (!window.ethereum) return null;
+  return parseInt((await window.ethereum.request({ method: "eth_chainId" })) as string, 16);
+}
+
+const MEZO_TESTNET_PARAMS = {
+  chainId: "0x7b7b",
+  chainName: "Mezo Testnet",
+  nativeCurrency: { name: "Bitcoin", symbol: "BTC", decimals: 18 },
+  rpcUrls: ["https://rpc.test.mezo.org"],
+  blockExplorerUrls: [EXPLORER],
+};
+
+/** Switch the wallet to Mezo testnet, adding it only if the wallet does not know the chain (EIP-3326 code 4902). */
 export async function ensureChain() {
   const eth = window.ethereum!;
-  const id = (await eth.request({ method: "eth_chainId" })) as string;
-  if (parseInt(id, 16) === mezoTestnet.id) return;
+  if ((await walletChainId()) === mezoTestnet.id) return;
   try {
-    await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x7b7b" }] });
+    await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: MEZO_TESTNET_PARAMS.chainId }] });
+  } catch (e) {
+    const code = (e as { code?: number; data?: { originalError?: { code?: number } } }).code;
+    const inner = (e as { data?: { originalError?: { code?: number } } }).data?.originalError?.code;
+    if (code === 4902 || inner === 4902) {
+      await eth.request({ method: "wallet_addEthereumChain", params: [MEZO_TESTNET_PARAMS] });
+    } else if (code === 4001) {
+      throw new Error("You declined switching to Mezo testnet. Cosign only works on Mezo testnet.");
+    } else {
+      throw e;
+    }
+  }
+  if ((await walletChainId()) !== mezoTestnet.id) throw new Error("Your wallet is not on Mezo testnet. Switch networks and try again.");
+}
+
+/** Ask the wallet to forget this site (MetaMask supports wallet_revokePermissions); always clears app state. */
+export async function disconnectWallet() {
+  try {
+    await window.ethereum?.request({ method: "wallet_revokePermissions", params: [{ eth_accounts: {} }] });
   } catch {
-    await eth.request({
-      method: "wallet_addEthereumChain",
-      params: [
-        {
-          chainId: "0x7b7b",
-          chainName: "Mezo Testnet",
-          nativeCurrency: { name: "Bitcoin", symbol: "BTC", decimals: 18 },
-          rpcUrls: ["https://rpc.test.mezo.org"],
-          blockExplorerUrls: [EXPLORER],
-        },
-      ],
-    });
+    /* not supported by every wallet; the app still forgets the account */
   }
 }
 
