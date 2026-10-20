@@ -13,3 +13,4 @@ contracts/cache/
 web/.env*.local
 contracts/broadcast/**/run-*.json
 contracts/broadcast/**/*.lock
+__pycache__/

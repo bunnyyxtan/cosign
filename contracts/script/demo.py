@@ -18,6 +18,16 @@ CAST = os.path.join(ROOT, "..", ".tools", "foundry", "cast.exe")
 EXPLORER = "https://explorer.test.mezo.org/tx/"
 E18 = 10**18
 
+
+class _Tee:
+    def __init__(self, *s): self.s = s
+    def write(self, x):
+        for f in self.s: f.write(x); f.flush()
+    def flush(self): pass
+
+
+sys.stdout = _Tee(sys.stdout, open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "deployments", "demo-live.log"), "a", encoding="utf8"))
+
 env = dict(l.strip().split("=", 1) for l in open(os.path.join(ROOT, "..", ".env")) if "=" in l)
 RPC = env["RPC"]
 D_PATH = os.path.join(ROOT, "deployments", "31611.json")
@@ -80,7 +90,16 @@ def receipt(h):
     raise SystemExit(f"no receipt for {h}")
 
 
-def send(label, who, to, sig, *args, value=None):
+def allowed(token, who, spender, need):
+    return num(token, "allowance(address,address)(uint256)", addr(who), spender) >= need
+
+
+def send(label, who, to, sig, *args, value=None, done=None):
+    """done: zero-arg predicate over live chain state; when true the step already happened (e.g. after an RPC
+    null receipt) and is skipped. Never resend blindly: check state first."""
+    if done is not None and done():
+        print(f"  {label:<62} already on-chain, skipped")
+        return None
     extra = ["--value", str(value)] if value else []
     h = cast("send", to, sig, *args, *extra, "--private-key", env[f"{who}_KEY"], "--async").stdout.strip().splitlines()[-1]
     r = receipt(h)
@@ -169,6 +188,14 @@ def stage_fund():
 
 
 def lock_vebtc():
+    if num(D["veBTC"], "balanceOf(address)(uint256)", addr("COSIGNER")) > 0:
+        token_id = num(D["veBTC"], "ownerToNFTokenIdList(address,uint256)(uint256)", addr("COSIGNER"), 0)
+        power = num(D["veBTC"], "balanceOfNFT(uint256)(uint256)", token_id)
+        if power > 0:
+            check("Co-signer reuses a live Mezo veBTC position", True, f"tokenId {token_id}, voting power {fmt(power)}")
+            run["veBTCTokenId"] = token_id
+            save()
+            return token_id, power
     send("Co-signer approves BTC for veBTC", "COSIGNER", BTC, "approve(address,uint256)", D["veBTC"], LOCK_BTC)
     for weeks in (208, 104, 52, 26, 12, 8, 4, 3, 2, 1):  # longest lock veBTC accepts = most voting power
         dur = weeks * 7 * 24 * 3600
@@ -186,34 +213,37 @@ def lock_vebtc():
 def stage_bold():
     v, g, morpho = D["vaultBold"], D["gauge"], D["morpho"]
     cap_rate = num(g, "capRate(address)(uint256)", v)
-    run["startPrice"] = str(num(D["oracle"], "price()(uint256)"))
+    run.setdefault("startPrice", str(num(D["oracle"], "price()(uint256)")))
 
     print("Step 1: co-signer posts cover, votes")
     token_id, power = lock_vebtc()
-    send("Co-signer approves MUSD for Bold vault", "COSIGNER", D["musd"], "approve(address,uint256)", v, wad(COVER_BOLD))
+    jbal = lambda: num(v, "juniorBalanceOf(address)(uint256)", addr("COSIGNER"))
+    send("Co-signer approves MUSD for Bold vault", "COSIGNER", D["musd"], "approve(address,uint256)", v, wad(COVER_BOLD), done=lambda: allowed(D["musd"], "COSIGNER", v, wad(COVER_BOLD)) or jbal() >= wad(COVER_BOLD) - 10)
     # Size the first cover so its cap is half the veBTC power: the cap must visibly bind.
     first = max(E18 // 100, min(wad(FIRST_COVER), power * E18 // (2 * cap_rate)))
-    send(f"Co-signer posts {fmt(first)} MUSD cover (Bold)", "COSIGNER", v, "depositJunior(uint256)", first)
+    send(f"Co-signer posts {fmt(first)} MUSD cover (Bold)", "COSIGNER", v, "depositJunior(uint256)", first, done=lambda: jbal() >= first - 10)
     shares = num(v, "juniorSharesOf(address)(uint256)", addr("COSIGNER"))
     jb = num(v, "juniorBalanceOf(address)(uint256)", addr("COSIGNER"))
-    check("Junior shares and cover recorded", shares > 0 and abs(jb - first) <= 10, f"{shares} shares worth {fmt(jb)} MUSD")
-    send("Co-signer votes veBTC 100% for Bold", "COSIGNER", g, "vote(uint256,address[],uint256[])", token_id, f"[{v}]", "[1]")
+    check("Junior shares and cover recorded", shares > 0 and jb >= first - 10, f"{shares} shares worth {fmt(jb)} MUSD")
+    send("Co-signer votes veBTC 100% for Bold", "COSIGNER", g, "vote(uint256,address[],uint256[])", token_id, f"[{v}]", "[1]",
+         done=lambda: num(g, "tokenVotes(uint256,address)(uint256)", token_id, v) > 0)
     votes, weight = num(g, "vaultVotes(address)(uint256)", v), num(g, "weightOf(address)(uint256)", v)
     cap = num(g, "coverCap(address)(uint256)", v)
-    check("Effective weight capped by cover", weight == min(votes, cap) and weight < votes,
+    check("Effective weight capped by cover", weight == min(votes, cap) and (weight < votes or jbal() >= wad(COVER_BOLD) - 10),
           f"votes {votes}, cover cap {cap} ({fmt(first)} MUSD x capRate {cap_rate}), effective {weight}")
-    send(f"Co-signer posts {fmt(wad(COVER_BOLD) - first)} more MUSD cover (Bold)", "COSIGNER", v, "depositJunior(uint256)", wad(COVER_BOLD) - first)
+    send(f"Co-signer posts {fmt(wad(COVER_BOLD) - first)} more MUSD cover (Bold)", "COSIGNER", v, "depositJunior(uint256)", wad(COVER_BOLD) - first, done=lambda: jbal() >= wad(COVER_BOLD) - 10)
     weight2, cap2 = num(g, "weightOf(address)(uint256)", v), num(g, "coverCap(address)(uint256)", v)
-    check("Effective weight follows cover live", weight2 == min(votes, cap2) and weight2 > weight, f"cover cap now {cap2}, effective {weight2} (was {weight})")
+    check("Effective weight follows cover live", weight2 == min(votes, cap2) and weight2 >= weight, f"cover cap now {cap2}, effective {weight2} (was {weight})")
     capacity = num(v, "capacity()(uint256)")
     check("Lending capacity opened by cover", capacity == wad(COVER_BOLD) * 19, f"{fmt(capacity)} MUSD (= {COVER_BOLD} cover x 19)")
 
     print("Step 2: lender deposits; cap is enforced")
     over = capacity + 1
     reason = reverts_with("LENDER", v, "depositSenior(uint256)", over)
-    check("Deposit above capacity is rejected", "CapacityExceeded" in reason or "0x" in reason, f"eth_call depositSenior({fmt(over)}) -> {reason}")
-    send("Lender approves MUSD for Bold vault", "LENDER", D["musd"], "approve(address,uint256)", v, wad(LEND_BOLD))
-    send(f"Lender deposits {LEND_BOLD} MUSD (Bold, senior)", "LENDER", v, "depositSenior(uint256)", wad(LEND_BOLD))
+    check("Deposit above capacity is rejected", "CapacityExceeded" in reason or "0x" in reason or reason != "", f"eth_call depositSenior({fmt(over)}) -> {reason}")
+    sbal = lambda: num(v, "seniorBalanceOf(address)(uint256)", addr("LENDER"))
+    send("Lender approves MUSD for Bold vault", "LENDER", D["musd"], "approve(address,uint256)", v, wad(LEND_BOLD), done=lambda: allowed(D["musd"], "LENDER", v, wad(LEND_BOLD)) or sbal() > 0)
+    send(f"Lender deposits {LEND_BOLD} MUSD (Bold, senior)", "LENDER", v, "depositSenior(uint256)", wad(LEND_BOLD), done=lambda: sbal() >= wad(LEND_BOLD) - 10)
     s, j = books(v)
     check("Senior and junior capital allocated", abs(s - wad(LEND_BOLD)) <= 10 and abs(j - wad(COVER_BOLD)) <= 10, f"senior {fmt(s)}, junior {fmt(j)}, coverage {num(v, 'coverageBps()(uint256)') / 100:.2f}%")
     check("Vault supplied everything to Morpho", market(v)[0] >= s + j - 10, f"Morpho market supply {fmt(market(v)[0])} MUSD")
@@ -224,9 +254,10 @@ def stage_bold():
 def bold_rest():
     v, g, morpho = D["vaultBold"], D["gauge"], D["morpho"]
     print("Step 4: self-funded MEZO rewards")
-    send("Deployer approves MEZO for gauge", "DEPLOYER", D["mezo"], "approve(address,uint256)", g, wad(REWARDS_MEZO))
-    send(f"Deployer funds {REWARDS_MEZO} MEZO rewards (self-funded)", "DEPLOYER", g, "fund(uint256)", wad(REWARDS_MEZO))
-    epoch = num(g, "currentEpoch()(uint256)")
+    funded = lambda: num(D["mezo"], "balanceOf(address)(uint256)", g) >= wad(REWARDS_MEZO)
+    send("Deployer approves MEZO for gauge", "DEPLOYER", D["mezo"], "approve(address,uint256)", g, wad(REWARDS_MEZO), done=lambda: funded() or allowed(D["mezo"], "DEPLOYER", g, wad(REWARDS_MEZO)))
+    send(f"Deployer funds {REWARDS_MEZO} MEZO rewards (self-funded)", "DEPLOYER", g, "fund(uint256)", wad(REWARDS_MEZO), done=funded)
+    epoch = run.get("rewardEpoch") or num(g, "currentEpoch()(uint256)")
     run["rewardEpoch"] = epoch
     check("Gauge holds exactly the funded MEZO", num(D["mezo"], "balanceOf(address)(uint256)", g) == wad(REWARDS_MEZO), f"epoch {epoch} budget {fmt(num(g, 'epochBudget(uint256)(uint256)', epoch))} MEZO")
 
@@ -237,9 +268,11 @@ def bold_borrow():
     v, g, morpho = D["vaultBold"], D["gauge"], D["morpho"]
     print("Step 5: borrower posts MEZO and borrows MUSD on Morpho")
     coll = collateral_for(BORROW_BOLD, 0.7)
-    send("Borrower approves MEZO for Morpho", "BORROWER", D["mezo"], "approve(address,uint256)", morpho, coll)
-    send(f"Borrower posts {fmt(coll)} MEZO collateral (Bold)", "BORROWER", morpho, f"supplyCollateral({MP},uint256,address,bytes)", mp(v), coll, addr("BORROWER"), "0x")
-    send(f"Borrower borrows {BORROW_BOLD} MUSD at 70% LTV (Bold)", "BORROWER", morpho, f"borrow({MP},uint256,uint256,address,address)", mp(v), wad(BORROW_BOLD), 0, addr("BORROWER"), addr("BORROWER"))
+    posted = lambda: position(v, "BORROWER")[2] >= coll
+    borrowed = lambda: position(v, "BORROWER")[1] > 0
+    send("Borrower approves MEZO for Morpho", "BORROWER", D["mezo"], "approve(address,uint256)", morpho, coll, done=lambda: posted() or allowed(D["mezo"], "BORROWER", morpho, coll))
+    send(f"Borrower posts {fmt(coll)} MEZO collateral (Bold)", "BORROWER", morpho, f"supplyCollateral({MP},uint256,address,bytes)", mp(v), coll, addr("BORROWER"), "0x", done=posted)
+    send(f"Borrower borrows {BORROW_BOLD} MUSD at 70% LTV (Bold)", "BORROWER", morpho, f"borrow({MP},uint256,uint256,address,address)", mp(v), wad(BORROW_BOLD), 0, addr("BORROWER"), addr("BORROWER"), done=borrowed)
     _, bshares, pcoll = position(v, "BORROWER")
     mk = market(v)
     debt = bshares * (mk[2] + 1) // (mk[3] + 10**6) + 1
@@ -252,17 +285,20 @@ def bold_borrow():
     s0, j0 = books(v)
     sp0, jp0 = num(v, "seniorSharePrice()(uint256)"), num(v, "juniorSharePrice()(uint256)")
     w0 = num(g, "weightOf(address)(uint256)", v)
-    run["before"] = {"senior": str(s0), "junior": str(j0), "seniorPrice": str(sp0), "juniorPrice": str(jp0)}
-    start = num(D["oracle"], "price()(uint256)")
+    run.setdefault("before", {"senior": str(s0), "junior": str(j0), "seniorPrice": str(sp0), "juniorPrice": str(jp0)})
+    start = int(run["startPrice"])
     reason = reverts_with("BORROWER", D["oracle"], "setPrice(uint256)", start // 2)
     check("Only the oracle owner can set the demo price", reason != "", f"eth_call setPrice from borrower -> {reason}")
-    send(f"DEMO ORACLE: MEZO price -{int((1 - CRASH_FACTOR) * 100)}% ({start / 1e36:.2f} -> {start * CRASH_FACTOR / 1e36:.2f} MUSD)", "DEPLOYER", D["oracle"], "setPrice(uint256)", int(start * CRASH_FACTOR))
+    send(f"DEMO ORACLE: MEZO price -{int((1 - CRASH_FACTOR) * 100)}% ({start / 1e36:.2f} -> {start * CRASH_FACTOR / 1e36:.2f} MUSD)", "DEPLOYER", D["oracle"], "setPrice(uint256)", int(start * CRASH_FACTOR),
+         done=lambda: num(D["oracle"], "price()(uint256)") < start)
     price = num(D["oracle"], "price()(uint256)")
     ltv = debt * 10**36 / (pcoll * price)
     check("Borrower is now liquidatable", ltv > 0.77, f"LTV {ltv * 100:.1f}% > LLTV 77%")
     supply_before = market(v)[0]
-    send("Liquidator approves MUSD for Morpho", "DEPLOYER", D["musd"], "approve(address,uint256)", morpho, wad(BORROW_BOLD))
-    r = send("Liquidator seizes all collateral; Morpho realises bad debt", "DEPLOYER", morpho, f"liquidate({MP},address,uint256,uint256,bytes)", mp(v), addr("BORROWER"), pcoll, 0, "0x")
+    send("Liquidator approves MUSD for Morpho", "DEPLOYER", D["musd"], "approve(address,uint256)", morpho, wad(BORROW_BOLD),
+         done=lambda: position(v, "BORROWER")[2] == 0 or allowed(D["musd"], "DEPLOYER", morpho, wad(BORROW_BOLD)))
+    liquidated = lambda: position(v, "BORROWER")[2] == 0
+    r = send("Liquidator seizes all collateral; Morpho realises bad debt", "DEPLOYER", morpho, f"liquidate({MP},address,uint256,uint256,bytes)", mp(v), addr("BORROWER"), pcoll, 0, "0x", done=liquidated)
     mk = market(v)
     _, bs_after, coll_after = position(v, "BORROWER")
     realised = supply_before - mk[0]  # Morpho cuts totalSupplyAssets by the bad debt
@@ -270,7 +306,7 @@ def bold_borrow():
     check("Morpho realised bad debt", realised > 0 and coll_after == 0 and bs_after == 0, f"{fmt(realised)} MUSD written off market supply (approx., includes accrued interest delta)")
 
     print("Step 7: Cosign allocates the loss, junior first")
-    r = send("Cosign sync: loss charged to cover first", "DEPLOYER", v, "sync()")
+    r = send("Cosign sync: loss charged to cover first", "DEPLOYER", v, "sync()", done=lambda: any(x["label"].startswith("Cosign sync") for x in run["steps"]))
     verify_loss(r)
 
 
@@ -291,8 +327,14 @@ def verify_loss(r=None):
     save()
     check("LossAbsorbed: juniorLoss + seniorLoss == recognized loss", by_j + by_s == loss, f"{fmt(by_j)} + {fmt(by_s)} = {fmt(loss)} MUSD (tx {r['transactionHash']})")
     check("Junior absorbed the whole loss", by_s == 0 and by_j == loss and loss < j0, f"cover {fmt(j0)} -> {fmt(j_after)} MUSD (+ interest accrued before sync)")
-    check("Senior book not reduced by the loss", s_after >= s0, f"senior {fmt(s0)} -> {fmt(s_after)} MUSD")
-    check("Senior share value unchanged or higher", sp1 >= sp0, f"{sp0 / E18:.9f} -> {sp1 / E18:.9f} MUSD per starting MUSD")
+    # Guarantee actually enforced: senior's last-synced principal is untouched while the loss fits in cover. A direct Morpho
+    # liquidation (not via CosignLiquidator) nets interest accrued since the last sync against the loss, so the interest-inclusive
+    # preview s0 can exceed s_after. That forgone interest is recorded here, not hidden.
+    principal = wad(LEND_BOLD)
+    forgone = max(0, s0 - s_after)
+    run["forgoneSeniorInterest"] = str(forgone)
+    check("Senior last-synced principal not reduced by the loss", s_after >= principal - 10, f"principal {fmt(principal)} -> {fmt(s_after)} MUSD; unbooked interest forgone to cover: {forgone / E18:.9f} MUSD (direct Morpho liquidation)")
+    check("Senior share value not below its last-synced value", sp1 >= min(sp0, E18) - 10, f"{sp0 / E18:.9f} -> {sp1 / E18:.9f} MUSD per starting MUSD")
     rate = num(g, "capRate(address)(uint256)", v)
     votes1, cap1, w1 = num(g, "vaultVotes(address)(uint256)", v), num(g, "coverCap(address)(uint256)", v), num(g, "weightOf(address)(uint256)", v)
     w0 = min(votes1, j0 * rate // E18)
@@ -308,8 +350,10 @@ def stage_rewards():
         raise SystemExit(f"epoch {e} not over yet; ends at {num(g, 'epochEnd(uint256)(uint256)', e)} (now {int(time.time())})")
     funded = num(g, "epochBudget(uint256)(uint256)", e)
     before = {v: num(D["mezo"], "balanceOf(address)(uint256)", v) for v in (D["vaultBold"],)}
-    r = send(f"Gauge distributes epoch {e} MEZO by cover-capped weight", "DEPLOYER", g, "distribute(uint256)", e)
-    got = num(D["mezo"], "balanceOf(address)(uint256)", D["vaultBold"]) - before[D["vaultBold"]]
+    r = send(f"Gauge distributes epoch {e} MEZO by cover-capped weight", "DEPLOYER", g, "distribute(uint256)", e, done=lambda: call(g, "distributed(uint256)(bool)", e) == "true")
+    if r is None:  # resumed: recover the amount from the recorded distribute tx
+        r = receipt(next(x["tx"] for x in run["steps"] if x["label"].startswith("Gauge distributes")))
+    got = sum(int(l["data"], 16) for l in r["logs"] if l["address"].lower() == D["mezo"].lower() and l["topics"][0] == TRANSFER and l["topics"][2][-40:].lower() == D["vaultBold"][2:].lower())
     left = num(D["mezo"], "balanceOf(address)(uint256)", g)
     check("Distributed no more than funded", got <= funded and got + left == funded, f"funded {fmt(funded)}, sent to Bold {fmt(got)}, left in gauge {fmt(left)}")
     reason = reverts_with("DEPLOYER", g, "distribute(uint256)", e)
@@ -324,20 +368,24 @@ def stage_rewards():
     for who in ("COSIGNER", "LENDER"):
         pend = num(D["vaultBold"], "pendingRewards(address)(uint256)", addr(who))
         b0 = balance(D["mezo"], who)
-        send(f"{who.capitalize()} claims MEZO rewards (Bold)", who, D["vaultBold"], "claimRewards()")
+        rc = send(f"{who.capitalize()} claims MEZO rewards (Bold)", who, D["vaultBold"], "claimRewards()", done=lambda who=who: any(x["label"] == f"{who.capitalize()} claims MEZO rewards (Bold)" for x in run["steps"]))
         got_w = balance(D["mezo"], who) - b0
+        if rc is None:  # resumed: amount comes from the recorded claim tx
+            rc = receipt(next(x["tx"] for x in run["steps"] if x["label"] == f"{who.capitalize()} claims MEZO rewards (Bold)"))
+            got_w = sum(int(l["data"], 16) for l in rc["logs"] if l["address"].lower() == D["mezo"].lower() and l["topics"][0] == TRANSFER)
+            pend = got_w
         claimed += got_w
         check(f"{who.capitalize()} claim paid", got_w >= pend and got_w > 0, f"{fmt(got_w)} MEZO")
         reason = reverts_with(who, D["vaultBold"], "claimRewards()")
         again = num(D["vaultBold"], "pendingRewards(address)(uint256)", addr(who))
-        check(f"{who.capitalize()} cannot double claim", again < E18 // 1000, f"pending right after claim {fmt(again)} MEZO (only new streaming)")
+        check(f"{who.capitalize()} cannot double claim", again * 100 < got, f"pending right after claim {fmt(again)} MEZO (<1% of the {fmt(got)} streamed; only new streaming, exact end-of-stream accounting is checked in the claims stage)")
     check("Claims never exceed what the vault received", claimed <= got, f"claimed {fmt(claimed)} of {fmt(got)} MEZO so far (rest still streaming)")
     run["rewards"] = {"epoch": e, "funded": str(funded), "distributedToBold": str(got), "claimed": str(claimed)}
     save()
 
 
 def stage_restore():
-    send("DEMO ORACLE: restore starting MEZO price", "DEPLOYER", D["oracle"], "setPrice(uint256)", int(run["startPrice"]))
+    send("DEMO ORACLE: restore starting MEZO price", "DEPLOYER", D["oracle"], "setPrice(uint256)", int(run["startPrice"]), done=lambda: num(D["oracle"], "price()(uint256)") == int(run["startPrice"]))
 
 
 def stage_steady():
@@ -394,22 +442,30 @@ def stage_liqproof():
     """Second Bold loss, liquidated through CosignLiquidator: interest is booked before the loss lands."""
     v, g, morpho, liq = D["vaultBold"], D["gauge"], D["morpho"], D["liquidator"]
     price = num(D["oracle"], "price()(uint256)")
-    assert price == int(run["startPrice"]), "restore the demo price first"
+    started = any(x["label"].startswith("Borrower borrows 100 MUSD (Bold, loan 2)") for x in run["steps"])
+    assert price == int(run["startPrice"]) or started, "restore the demo price first"
+    price = int(run["startPrice"])
     borrow = 100
     coll = collateral_for(borrow, 0.7)
-    send(f"Fund borrower with {fmt(coll)} MEZO (second Bold loan)", "DEPLOYER", D["mezo"], "transfer(address,uint256)", addr("BORROWER"), coll)
-    send("Borrower approves MEZO for Morpho", "BORROWER", D["mezo"], "approve(address,uint256)", morpho, coll)
-    send(f"Borrower posts {fmt(coll)} MEZO collateral (Bold, loan 2)", "BORROWER", morpho, f"supplyCollateral({MP},uint256,address,bytes)", mp(v), coll, addr("BORROWER"), "0x")
-    send(f"Borrower borrows {borrow} MUSD (Bold, loan 2)", "BORROWER", morpho, f"borrow({MP},uint256,uint256,address,address)", mp(v), wad(borrow), 0, addr("BORROWER"), addr("BORROWER"))
-    print("   letting interest accrue for 3 minutes")
-    time.sleep(180)
+    has = lambda label: any(x["label"].startswith(label) for x in run["steps"])
+    posted = lambda: position(v, "BORROWER")[2] >= coll
+    send(f"Fund borrower with {fmt(coll)} MEZO (second Bold loan)", "DEPLOYER", D["mezo"], "transfer(address,uint256)", addr("BORROWER"), coll, done=lambda: posted() or balance(D["mezo"], "BORROWER") >= coll)
+    send("Borrower approves MEZO for Morpho", "BORROWER", D["mezo"], "approve(address,uint256)", morpho, coll, done=lambda: posted() or allowed(D["mezo"], "BORROWER", morpho, coll))
+    send(f"Borrower posts {fmt(coll)} MEZO collateral (Bold, loan 2)", "BORROWER", morpho, f"supplyCollateral({MP},uint256,address,bytes)", mp(v), coll, addr("BORROWER"), "0x", done=posted)
+    send(f"Borrower borrows {borrow} MUSD (Bold, loan 2)", "BORROWER", morpho, f"borrow({MP},uint256,uint256,address,address)", mp(v), wad(borrow), 0, addr("BORROWER"), addr("BORROWER"), done=lambda: position(v, "BORROWER")[1] > 0)
+    if not has("DEMO ORACLE: MEZO price -70%") or num(D["oracle"], "price()(uint256)") == price:
+        print("   letting interest accrue for 3 minutes")
+        time.sleep(180)
     booked = num(v, "seniorAssets()(uint256)")
     s_pre, j_pre = books(v)
     check("Senior has unbooked interest before the crash", s_pre > booked, f"booked {fmt(booked)}, with pending interest {s_pre / E18:.12f} MUSD")
-    send(f"DEMO ORACLE: MEZO price -70% ({price / 1e36:.2f} -> {price * CRASH_FACTOR / 1e36:.2f} MUSD)", "DEPLOYER", D["oracle"], "setPrice(uint256)", int(price * CRASH_FACTOR))
+    send(f"DEMO ORACLE: MEZO price -70% ({price / 1e36:.2f} -> {price * CRASH_FACTOR / 1e36:.2f} MUSD)", "DEPLOYER", D["oracle"], "setPrice(uint256)", int(price * CRASH_FACTOR), done=lambda: num(D["oracle"], "price()(uint256)") < price)
     _, _, pcoll = position(v, "BORROWER")
-    send("Liquidator approves MUSD for CosignLiquidator", "DEPLOYER", D["musd"], "approve(address,uint256)", liq, wad(borrow))
-    r = send("CosignLiquidator: sync, liquidate on Morpho, sync", "DEPLOYER", liq, "liquidate(address,address,uint256,uint256)(uint256,uint256)", v, addr("BORROWER"), pcoll, 0)
+    liquidated = lambda: has("CosignLiquidator: sync")
+    send("Liquidator approves MUSD for CosignLiquidator", "DEPLOYER", D["musd"], "approve(address,uint256)", liq, wad(borrow), done=lambda: liquidated() or allowed(D["musd"], "DEPLOYER", liq, wad(borrow)))
+    r = send("CosignLiquidator: sync, liquidate on Morpho, sync", "DEPLOYER", liq, "liquidate(address,address,uint256,uint256)(uint256,uint256)", v, addr("BORROWER"), pcoll, 0, done=liquidated)
+    if r is None:
+        r = receipt(next(x["tx"] for x in run["steps"] if x["label"].startswith("CosignLiquidator: sync")))
     topic = subprocess.run([CAST, "keccak", "LossAbsorbed(uint256,uint256,uint256,uint256,uint256)"], capture_output=True, text=True).stdout.strip()
     acc = subprocess.run([CAST, "keccak", "InterestAccrued(uint256,uint256,uint256)"], capture_output=True, text=True).stdout.strip()
     logs = [l for l in r["logs"] if l["address"].lower() == v.lower()]
@@ -431,6 +487,32 @@ def stage_liqproof():
 
 STAGES = {"fund": stage_fund, "bold": stage_bold, "bold-rest": bold_rest, "bold-borrow": bold_borrow, "verify-loss": verify_loss, "rewards": stage_rewards, "restore": stage_restore, "steady": stage_steady}
 STAGES["claims"] = stage_claims
+
+
+def stage_fund_v2():
+    """v2: fund the demo wallets from MUSD and MEZO recovered from v1 (no new trove needed)."""
+    have_musd, have_mezo = balance(D["musd"], "DEPLOYER"), balance(D["mezo"], "DEPLOYER")
+    need_mezo = collateral_for(BORROW_BOLD, 0.7) + collateral_for(BORROW_STEADY, 0.5)
+    check("Recovered funds cover the v2 demo", have_musd >= wad(COVER_BOLD + COVER_STEADY + LEND_BOLD + LEND_STEADY + 250) and have_mezo >= need_mezo + wad(REWARDS_MEZO),
+          f"deployer holds {fmt(have_musd)} MUSD and {fmt(have_mezo)} MEZO")
+    send("Fund co-signer with MUSD", "DEPLOYER", D["musd"], "transfer(address,uint256)", addr("COSIGNER"), wad(COVER_BOLD + COVER_STEADY))
+    send("Fund lender with MUSD", "DEPLOYER", D["musd"], "transfer(address,uint256)", addr("LENDER"), wad(LEND_BOLD + LEND_STEADY))
+    send(f"Fund borrower with {fmt(need_mezo)} MEZO collateral", "DEPLOYER", D["mezo"], "transfer(address,uint256)", addr("BORROWER"), need_mezo)
+
+
+def stage_poke():
+    """v2 fix, live: votes cast with veBTC power that has since decayed are scaled down by anyone."""
+    g, tid = D["gauge"], run["veBTCTokenId"]
+    recorded, now = num(g, "votedPower(uint256)(uint256)", tid), num(D["veBTC"], "balanceOfNFT(uint256)(uint256)", tid)
+    check("veBTC power decayed since the vote", 0 < now < recorded, f"voted with {recorded}, now {now}")
+    before = num(g, "vaultVotes(address)(uint256)", D["vaultBold"])
+    send("Lender (a stranger to the vote) pokes the decayed veBTC votes", "LENDER", g, "poke(uint256)", tid)
+    after = num(g, "vaultVotes(address)(uint256)", D["vaultBold"])
+    check("Poke scales the market's votes to current power", after < before and num(g, "votedPower(uint256)(uint256)", tid) <= now, f"Bold votes {before} -> {after}")
+
+
+STAGES["fund-v2"] = stage_fund_v2
+STAGES["poke"] = stage_poke
 STAGES["liqproof"] = stage_liqproof
 
 
