@@ -38,7 +38,7 @@ contract MockVeBTC is IVeBTC {
     }
 }
 
-contract CosignTest is Test {
+abstract contract CosignSetup is Test {
     using MarketParamsLib for MarketParams;
     using MorphoBalancesLib for IMorpho;
 
@@ -137,6 +137,17 @@ contract CosignTest is Test {
         badDebt = supplyBefore - morpho.market(mp.id()).totalSupplyAssets;
     }
 
+    function _vote(address who, uint256 tokenId) internal {
+        address[] memory t = new address[](1);
+        t[0] = address(vault);
+        uint256[] memory w = new uint256[](1);
+        w[0] = 1;
+        vm.prank(who);
+        gauge.vote(tokenId, t, w);
+    }
+}
+
+contract CosignTest is CosignSetup {
     // --------------------------------------------------------------- tests
 
     function test_JuniorAbsorbsBadDebt_SeniorFlat() public {
@@ -404,12 +415,4 @@ contract CosignTest is Test {
         }
     }
 
-    function _vote(address who, uint256 tokenId) internal {
-        address[] memory t = new address[](1);
-        t[0] = address(vault);
-        uint256[] memory w = new uint256[](1);
-        w[0] = 1;
-        vm.prank(who);
-        gauge.vote(tokenId, t, w);
-    }
 }
