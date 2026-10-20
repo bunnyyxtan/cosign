@@ -101,6 +101,11 @@ export default function App() {
   }, [d]);
 
   useEffect(() => {
+    // Dev-only: ?devconnect connects the local test wallet on load (used for headless screenshots).
+    if (import.meta.env.DEV && new URLSearchParams(window.location.search).has("devconnect")) connectWallet().then(setAccount).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     window.ethereum?.on?.("accountsChanged", (a) => setAccount(((a as Address[])[0] ?? null) as Address | null));
   }, []);
 
@@ -254,7 +259,7 @@ function Markets({ markets, gauge, price, losses }: Ctx) {
         {markets.map((m) => {
           const a = aprs(m);
           const share = gauge && gauge.totalWeight > 0n ? Number((m.weight * 10_000n) / gauge.totalWeight) : 0;
-          const loss = losses.find((l) => l.vault === m.vault);
+          const loss = losses.find((l) => l.vault.toLowerCase() === m.vault.toLowerCase());
           return (
             <article className="market-row" key={m.vault}>
               <div className="row-head">
