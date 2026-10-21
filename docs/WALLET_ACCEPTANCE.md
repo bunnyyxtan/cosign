@@ -1,6 +1,6 @@
 # Real-wallet acceptance checklist
 
-**Status: BLOCKED. Not run.** The engineering session has no wallet extension, so no result below is a pass. Every row stays `NOT RUN` until a person completes it with a real browser wallet extension (see **Wallets under test**) and records what they saw. The test-only wallet shim used during development is **not** valid evidence and must not be used here.
+**Status: IN PROGRESS with Rabby** (started 21 October 2026). Rows not yet run stay `NOT RUN`. The engineering session has no wallet extension, so no result below is a pass. Every row stays `NOT RUN` until a person completes it with a real browser wallet extension (see **Wallets under test**) and records what they saw. The test-only wallet shim used during development is **not** valid evidence and must not be used here.
 
 The redesigned app on `feat/premium-site` (served at `/app/`) changes the layout, not the wallet or transaction flows, so every row below applies to it. Its transaction tray steps through Sign, Mining and Confirmed. When testing, also check that it reads **Confirmed** only once the explorer shows the transaction succeeded, and that action buttons stay disabled while a transaction is in flight.
 
@@ -81,12 +81,23 @@ If you are unsure whether a transaction went through, check the explorer or relo
 
 Engineering can send testnet MUSD, MEZO or a veBTC position from the deployer wallet, but only once the founder approves the transfer.
 
+## Rabby results log
+
+Only what the founder saw in a real Rabby browser extension at `http://localhost:4173/app/` (production build, live Mezo testnet). Nothing here comes from the development test wallet.
+
+| Date | Observation | Rows | Evidence |
+|---|---|---|---|
+| 2026-10-21 | Connected Rabby to Cosign. Header shows `0xf080…9371`, the active Rabby account. | W2 PASS, A2 PARTIAL | Founder screenshot |
+| 2026-10-21 | App shows "Mezo testnet · 31611" and live market data; no wrong-network banner. Not recorded: whether Rabby was already on Mezo testnet or the app switched it. | A4, A5 still NOT RUN | Founder screenshot |
+| 2026-10-21 | Rabby shows 0.0500 testnet BTC. Not yet compared with the app's Positions page or the explorer. | W3 still NOT RUN | Founder report |
+| 2026-10-21 | Browser console not yet inspected. | — | Pending |
+
 ## W. Wallet setup and selection
 
 | # | Steps | Expected | Result |
 |---|---|---|---|
 | W1 | Add Mezo testnet by hand using the network settings table, then open the app. | The wallet shows Mezo Testnet, chain 31611. The app shows no wrong-network banner. | NOT RUN |
-| W2 | Connect, then compare the address in the app header with the wallet's active account. | The wallet under test opens its own prompt. Both show the same address. | NOT RUN |
+| W2 | Connect, then compare the address in the app header with the wallet's active account. | The wallet under test opens its own prompt. Both show the same address. | PASS (Rabby, 2026-10-21): connected; header shows `0xf080…9371`, matching the active Rabby account. Founder screenshot. |
 | W3 | Compare balances: MUSD and MEZO on the app's Positions page against the wallet and the explorer's token page for your address. | All three agree, allowing for display rounding. | NOT RUN |
 | W4 | Enable Rabby and OKX Wallet together, with Rabby set as the default wallet. Reload and click Connect. | Rabby opens, not OKX, and the app shows the Rabby account. Write down which wallet opened. | NOT RUN |
 | W5 | Same, with OKX Wallet set as the default (Rabby's default-wallet switch off). Reload and click Connect. | OKX Wallet opens and the app shows the OKX account. If the other wallet opens, both open, or neither opens, mark FAIL and tell engineering. | NOT RUN |
@@ -97,7 +108,7 @@ Engineering can send testnet MUSD, MEZO or a veBTC position from the deployer wa
 | # | Steps | Expected | Result |
 |---|---|---|---|
 | A1 | Open the app in a browser **without** a wallet extension. Click Connect wallet. | A clear message that no browser wallet was found. The website replay and the app's Recorded evidence page still work. | NOT RUN |
-| A2 | With the wallet installed, click Connect wallet. | Wallet asks for permission, then the header shows your short address and Disconnect. | NOT RUN |
+| A2 | With the wallet installed, click Connect wallet. | Wallet asks for permission, then the header shows your short address and Disconnect. | PARTIAL (Rabby, 2026-10-21): Rabby connected and the header shows the short address. The Disconnect button is checked in A3. |
 | A3 | Click Disconnect. | Header returns to Connect wallet. No positions shown. Reloading does not reconnect silently. | NOT RUN |
 | A4 | Remove Mezo testnet from the wallet, then Connect. | Wallet offers to add the network (chain 31611, RPC `rpc.test.mezo.org`, symbol BTC). Approve. | NOT RUN |
 | A5 | Switch the wallet to another network (for example Ethereum). | A red banner says the wallet is on another network, with a Switch button. Switch works. | NOT RUN |
