@@ -2,6 +2,8 @@
 
 **Status: BLOCKED. Not run.** The engineering session has no wallet extension, so no result below is a pass. Every row stays `NOT RUN` until a person completes it with MetaMask (or another EIP-1193 wallet) and records what they saw. The test-only wallet shim used during development is **not** valid evidence and must not be used here.
 
+The redesigned app on `feat/premium-site` (served at `/app/`) changes the layout, not the wallet or transaction flows, so every row below applies to it. Its transaction tray steps through Sign, Mining and Confirmed. When testing, also check that it reads **Confirmed** only once the explorer shows the transaction succeeded, and that action buttons stay disabled while a transaction is in flight.
+
 Run it against the production build, so you test what judges will get:
 
 ```bash

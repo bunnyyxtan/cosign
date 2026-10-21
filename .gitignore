@@ -16,3 +16,4 @@ contracts/broadcast/**/*.lock
 __pycache__/
 research/
 graphify-out/
+design/review/
