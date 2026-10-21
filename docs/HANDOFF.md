@@ -4,7 +4,7 @@ _21 October 2026. Status: **waiting for founder and product-lead visual approval
 
 ## Where things are
 
-- **Branch:** `feat/premium-site`, pushed to `origin`, six commits on top of `main` (`7effae5`). Not merged, no PR, not deployed.
+- **Branch:** `feat/premium-site`, pushed to `origin`, seven commits on top of `main` (`7effae5`). Not merged, no PR, not deployed.
 - **Rollback point:** local tag `rollback/pre-premium-site` (= `main` at `7effae5`; not pushed).
 - **Contracts, deployment addresses and recorded evidence:** unchanged. `git diff rollback/pre-premium-site -- contracts` is empty.
 - **Review screenshots** (full resolution, local only, gitignored): `design/review/2026-10-21/`.
@@ -54,7 +54,7 @@ Verified in the browser at 320, 390, 768, 1,024, 1,440 and 1,920 px. There is no
 
 ## Git attribution
 
-The first five branch commits (`f3a1cd2` to `9e665b0`) carry an AI `Co-Authored-By` trailer that the coding agent added; `main` has none. The sixth commit and later do not. A local `commit-msg` hook now rejects AI trailers and any author other than Bunnyy, and the project's Claude Code settings turn commit attribution off. Removing the trailers from the five pushed commits needs a history rewrite and force-push, so it waits for founder approval.
+On 21 October 2026, with founder approval, the AI `Co-Authored-By` trailers were removed from the first five branch commits. Only the messages changed: authors, dates, file changes and order are identical, and the source tree is byte-identical (`133ce01`). The branch was pushed with `--force-with-lease`. The pre-rewrite tip `5ee49ce` is kept locally as the tag `backup/premium-site-pre-rewrite` and the branch `backup/premium-site-pre-rewrite-branch` (neither is pushed). Rewritten commits: `527a469`, `3e3a075`, `d1b4a8c`, `71021b6`, `1c769e0` and `eab6e14`. A local `commit-msg` hook rejects AI trailers and any author other than Bunnyy, and the project's Claude Code settings turn commit attribution off.
 
 ## Re-running the verification
 
