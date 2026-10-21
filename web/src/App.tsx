@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Address, Hex } from "viem";
 import {
   addrUrl, authorizedAccount, client, connectWallet, disconnectWallet, ensureChain, erc20Abi, loadDeployment, loadLosses, loadMarkets,
@@ -6,7 +6,7 @@ import {
   type Eip1193,
   type DemoRun, type Deployment, type GaugeState, type LossEvent, type MarketState, type UserState,
 } from "./chain";
-import type { Ctx } from "./app/ctx";
+import type { Ctx, Next } from "./app/ctx";
 import { ConnectModal } from "./app/Connect";
 import { Cosign, Rewards } from "./app/Cosign";
 import { Evidence } from "./app/Evidence";
@@ -57,8 +57,9 @@ function explain(e: unknown): string {
 }
 
 type Route = { page: "markets" } | { page: "cosign" } | { page: "rewards" } | { page: "positions" } | { page: "evidence" } | { page: "market"; vault: Address };
-/** Wallet = waiting for the user to sign; chain = sent, waiting for a receipt; ok only after a successful receipt. */
-type Toast = { kind: "wallet" | "chain" | "ok" | "error"; label: string; text: string; tx?: Hex; block?: bigint };
+/** Wallet = waiting for the user to sign; chain = sent, waiting for a receipt; ok only after a successful receipt.
+ *  syncing = confirmed, figures not yet re-read; next = the separate action an approval unlocks. */
+type Toast = { kind: "wallet" | "chain" | "ok" | "error"; label: string; text: string; tx?: Hex; block?: bigint; syncing?: boolean; next?: Next };
 
 function parseRoute(): Route {
   const h = window.location.hash.replace(/^#\/?/, "");
@@ -83,6 +84,7 @@ export default function App() {
   const [chainId, setChainId] = useState<number | null>(null);
   const [updated, setUpdated] = useState<Date | null>(null);
   const [busy, setBusy] = useState(false);
+  const [syncing, setSyncing] = useState(false); // a confirmed transaction's figures are being re-read
   const [menu, setMenu] = useState(false);
 
   useEffect(() => {
@@ -98,24 +100,37 @@ export default function App() {
     });
   }, []);
 
-  const refresh = useCallback(async () => {
-    if (!d) return;
+  // Every refresh reads at one block, never older than this session's latest confirmed transaction, so a lagging
+  // RPC node cannot hand back pre-transaction figures as current. Returns whether fresh figures were applied.
+  const floor = useRef(0n);
+  const refresh = useCallback(async (quiet = false) => {
+    if (!d) return false;
     try {
-      const r = await loadMarkets(d);
+      const head = await client.getBlockNumber();
+      if (head < floor.current) return false;
+      const read = async (at: bigint) => {
+        const r = await loadMarkets(d, at);
+        return { r, u: account ? await loadUser(d, r.markets, r.gauge.epoch, account, at) : null };
+      };
+      // A node behind the load balancer may not have the newest block yet: fall back one block, never below the floor.
+      const { r, u } = await read(head).catch((e) => (head - 1n >= floor.current ? read(head - 1n) : Promise.reject(e)));
       setMarkets(r.markets);
       setGauge(r.gauge);
       setPrice(r.price);
+      if (account) setUser(u);
       setLoadError(null);
       setUpdated(new Date());
-      if (account) setUser(await loadUser(d, r.markets, r.gauge.epoch, account));
+      return true;
     } catch (e) {
+      if (quiet) return false;
       setLoadError(`Could not read Mezo testnet: ${(e as Error).message.split("\n")[0]}`);
+      return false;
     }
   }, [d, account]);
 
   useEffect(() => {
     refresh();
-    const t = setInterval(refresh, 15_000);
+    const t = setInterval(() => refresh(), 15_000);
     return () => clearInterval(t);
   }, [refresh]);
 
@@ -233,13 +248,19 @@ export default function App() {
           setToast({ kind: "error", label, text: "The transaction was mined but reverted. Nothing changed.", tx: hash });
           return false;
         }
-        setToast({ kind: "ok", label, text: `Confirmed in block ${r.blockNumber.toString()}`, tx: hash, block: r.blockNumber });
-        // The load-balanced RPC can trail the receipt: wait until it has the tx's block, then read (and read once more).
-        for (let i = 0; i < 15 && (await client.getBlockNumber().catch(() => 0n)) < r.blockNumber + 1n; i++) {
-          await new Promise((res) => setTimeout(res, 1500));
+        const done = `Confirmed in block ${r.blockNumber.toString()}`;
+        setToast({ kind: "ok", label, text: "Confirmed onchain · updating balances…", tx: hash, block: r.blockNumber, syncing: true });
+        if (r.blockNumber > floor.current) floor.current = r.blockNumber;
+        // Re-read until a node that has this block answers. A failed read is not a failed transaction, and the
+        // buttons stay locked meanwhile so stale figures never invite a second send.
+        setSyncing(true);
+        let fresh = false;
+        for (const until = Date.now() + 45_000; !fresh && Date.now() < until; ) {
+          fresh = await refresh(true);
+          if (!fresh) await new Promise((res) => setTimeout(res, 1500));
         }
-        await refresh();
-        setTimeout(refresh, 5000);
+        setSyncing(false);
+        setToast((t) => (t?.tx === hash ? { ...t, syncing: false, text: fresh ? `${done} · balances updated` : `${done}. Balances could not be re-read yet; Cosign keeps trying every 15 seconds. Do not send it again.` } : t));
         if (d) loadLosses(d).then(setLosses).catch(() => setLossesFailed(true));
         return true;
       } catch (e) {
@@ -254,19 +275,31 @@ export default function App() {
 
   /** Approve `spender` for `amount` of `token` if the current allowance is short. */
   const approveIfNeeded = useCallback(
-    async (token: Address, spender: Address, amount: bigint, label: string) => {
+    async (token: Address, spender: Address, amount: bigint, label: string, next: Next) => {
       if (!account) return false;
-      const allowance = await client.readContract({ address: token, abi: erc20Abi, functionName: "allowance", args: [account, spender] });
+      const allowance = await client.readContract({ address: token, abi: erc20Abi, functionName: "allowance", args: [account, spender] }).catch(() => null);
+      if (allowance === null) {
+        setToast({ kind: "error", label: `Approve ${label}`, text: "Could not read your current allowance from Mezo testnet. Nothing was sent; try again in a moment." });
+        return false;
+      }
       if (allowance >= amount) return true;
       const ok = await send(`Approve ${label}`, (w) => w.writeContract({ address: token, abi: erc20Abi, functionName: "approve", args: [spender, amount] }));
       if (!ok) return false;
-      // Wallets let users edit the spending cap; check what was actually approved.
-      const now = await client.readContract({ address: token, abi: erc20Abi, functionName: "allowance", args: [account, spender] });
-      if (now < amount) {
-        setToast({ kind: "error", label: `Approve ${label}`, text: `The approved amount is lower than ${fmt(amount)}. Approve at least that much.` });
-        return false;
+      // Wallets let users edit the spending cap; check what was actually approved, at or after the approval's block.
+      let now: bigint | null = null;
+      for (let i = 0; i < 5 && now === null; i++) {
+        now = await client.readContract({ address: token, abi: erc20Abi, functionName: "allowance", args: [account, spender], blockNumber: floor.current }).catch(() => null);
+        if (now === null) await new Promise((res) => setTimeout(res, 1500));
       }
-      return true;
+      if (now === null) {
+        setToast((t) => (t ? { ...t, syncing: false, text: "Approval confirmed, but the allowance could not be re-read yet. Wait a moment, then press the button again; you will not be asked to approve twice if it went through." } : t));
+      } else if (now < amount) {
+        setToast({ kind: "error", label: `Approve ${label}`, text: `The approved amount is lower than ${fmt(amount)}. Approve at least that much.` });
+      } else {
+        // Two deliberate steps: the action is offered as its own button, never chained onto the approval.
+        setToast((t) => (t ? { ...t, syncing: false, text: `Allowance approved — ready to ${next.ready}`, next } : t));
+      }
+      return false;
     },
     [account, send],
   );
@@ -334,10 +367,15 @@ export default function App() {
             <button className="btn btn-dark btn-sm" onClick={switchNetwork}>Switch to Mezo testnet</button>
           </div>
         )}
+        {syncing && (
+          <div className="banner is-pending" role="status">
+            <span><span className="spin" aria-hidden="true" />Your transaction is confirmed onchain. The figures below are from before it and are being updated.</span>
+          </div>
+        )}
         {loadError && (
           <div className="banner is-loss" role="alert">
             <span>{loadError}. Figures below may be out of date.</span>
-            <button className="btn btn-ghost btn-sm" onClick={refresh}>Try again</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => refresh()}>Try again</button>
           </div>
         )}
 
@@ -363,7 +401,7 @@ export default function App() {
         </footer>
       </div>
 
-      {toast && <TxTray toast={toast} onClose={() => setToast(null)} />}
+      {toast && <TxTray toast={toast} busy={busy} onClose={() => setToast(null)} />}
       <ConnectModal open={walletOpen} onClose={closeWallet} account={account} walletId={walletId} chainId={chainId}
         onConnected={onConnected} onChain={setChainId} onDisconnect={disconnect} />
     </div>
@@ -380,22 +418,27 @@ function Loading({ text }: { text: string }) {
 }
 
 /** One transaction's state. It reads "Confirmed" only after a successful receipt; pending states cannot be dismissed. */
-function TxTray({ toast, onClose }: { toast: Toast; onClose: () => void }) {
-  const pending = toast.kind === "wallet" || toast.kind === "chain";
+function TxTray({ toast, busy, onClose }: { toast: Toast; busy: boolean; onClose: () => void }) {
+  // Confirmed is a fact once the receipt says so; the re-read after it is shown separately and cannot be dismissed.
+  const signing = toast.kind === "wallet" || toast.kind === "chain";
+  const pending = signing || !!toast.syncing;
   const cur = { wallet: 0, chain: 1, ok: 3, error: -1 }[toast.kind];
   const cls = (i: number) => (i < cur ? "done" : i === cur ? "on" : "");
   return (
     <div className={`tray is-${toast.kind}`} role={toast.kind === "error" ? "alert" : "status"} aria-live="polite">
-      <div className="tray-icon" aria-hidden="true">{pending ? <span className="spin" /> : toast.kind === "ok" ? <Check /> : <Close />}</div>
+      <div className="tray-icon" aria-hidden="true">{signing ? <span className="spin" /> : toast.kind === "ok" ? <Check /> : <Close />}</div>
       <div className="tray-body">
         <b>{toast.label}</b>
-        <span>{toast.text}</span>
+        <span className={toast.syncing ? "tray-sync" : undefined}>{toast.syncing && <span className="spin" aria-hidden="true" />}{toast.text}</span>
         {toast.kind !== "error" && (
           <ol className="tray-steps" aria-hidden="true">
             <li className={cls(0)}>Sign</li><li className={cls(1)}>Mining</li><li className={cls(2)}>Confirmed</li>
           </ol>
         )}
         {toast.tx && <a className="link" href={txUrl(toast.tx)} target="_blank" rel="noreferrer">View transaction <ArrowNE size={12} /></a>}
+        {toast.next && !toast.syncing && (
+          <button className="btn btn-dark btn-sm tray-next" disabled={busy} onClick={() => { const n = toast.next!; onClose(); n.run(); }}>{toast.next.label}</button>
+        )}
       </div>
       {!pending && <button className="icon-btn" onClick={onClose} aria-label="Dismiss"><Close /></button>}
     </div>

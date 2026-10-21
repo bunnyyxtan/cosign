@@ -89,8 +89,8 @@ function CoverPanel({ m, user, send, approveIfNeeded, d, busy }: Ctx & { m: Mark
           : <span className="field-hint">{coverHint(m, amount)}</span>}
       </div>
       <button className="btn btn-dark btn-block" disabled={busy || amount === 0n || overWallet}
-        onClick={async () => {
-          if (!(await approveIfNeeded(d.musd, m.vault, amount, "MUSD"))) return;
+        onClick={async function postCover() {
+          if (!(await approveIfNeeded(d.musd, m.vault, amount, "MUSD", { ready: "deposit", label: `Post ${fmt(amount)} MUSD cover`, run: postCover }))) return;
           if (await send("Post cover", (w) => w.writeContract({ address: m.vault, abi: vaultAbi, functionName: "depositJunior", args: [amount] }))) setDep("");
         }}>Post cover</button>
       {me && me.juniorShares > 0n && (

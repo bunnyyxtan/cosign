@@ -269,8 +269,8 @@ function LendPanel({ m, user, account, send, approveIfNeeded, connect, d, busy }
               : <span className="field-hint">Room to lend {fmt(m.capacity)} MUSD · wallet {user ? fmt(user.musd) : "…"} MUSD</span>}
           </div>
           <button className="btn btn-dark btn-block" disabled={busy || depWei === 0n || tooMuch || overWallet}
-            onClick={async () => {
-              if (!(await approveIfNeeded(d.musd, m.vault, depWei, "MUSD"))) return;
+            onClick={async function deposit() {
+              if (!(await approveIfNeeded(d.musd, m.vault, depWei, "MUSD", { ready: "deposit", label: `Deposit ${fmt(depWei)} MUSD`, run: deposit }))) return;
               if (await send("Deposit MUSD", (w) => w.writeContract({ address: m.vault, abi: vaultAbi, functionName: "depositSenior", args: [depWei] }))) setDep("");
             }}>Deposit</button>
           {m.capacity === 0n && <p className="field-hint">Deposits are closed: {m.undercovered ? "the market is under-covered" : "there is no cover yet"}.</p>}
@@ -328,9 +328,9 @@ function BorrowPanel({ m, user, account, send, approveIfNeeded, connect, d, pric
             <Amount id="coll" value={coll} onChange={setColl} unit="MEZO" max={user?.mezo} />
           </div>
           <button className="btn btn-light btn-block" disabled={busy || toWei(coll) === 0n}
-            onClick={async () => {
+            onClick={async function addCollateral() {
               const c = toWei(coll);
-              if (!(await approveIfNeeded(d.mezo, d.morpho, c, "MEZO"))) return;
+              if (!(await approveIfNeeded(d.mezo, d.morpho, c, "MEZO", { ready: "add collateral", label: `Add ${fmt(c, 4)} MEZO collateral`, run: addCollateral }))) return;
               if (await send("Add collateral", (w) => w.writeContract({ address: d.morpho, abi: morphoAbi, functionName: "supplyCollateral", args: [m.params, c, account, "0x"] }))) setColl("");
             }}>Add collateral</button>
           <div className="field">
@@ -348,10 +348,10 @@ function BorrowPanel({ m, user, account, send, approveIfNeeded, connect, d, pric
                 <Amount id="repay" value={rep} onChange={setRep} unit="MUSD" max={debt} />
               </div>
               <button className="btn btn-light btn-block" disabled={busy || toWei(rep) === 0n}
-                onClick={async () => {
+                onClick={async function repay() {
                   const r = toWei(rep);
                   const full = r >= debt;
-                  if (!(await approveIfNeeded(d.musd, d.morpho, full ? debt + debt / 1000n + 1n : r, "MUSD"))) return;
+                  if (!(await approveIfNeeded(d.musd, d.morpho, full ? debt + debt / 1000n + 1n : r, "MUSD", { ready: "repay", label: `Repay ${fmt(r)} MUSD`, run: repay }))) return;
                   const args = full ? ([m.params, 0n, me!.borrowShares, account, "0x"] as const) : ([m.params, r, 0n, account, "0x"] as const);
                   if (await send("Repay MUSD", (w) => w.writeContract({ address: d.morpho, abi: morphoAbi, functionName: "repay", args }))) setRep("");
                 }}>Repay</button>

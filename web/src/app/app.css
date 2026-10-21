@@ -44,6 +44,10 @@
 .acct-addr i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
 .banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 16px clamp(20px, 3vw, 40px) 0; padding: 12px 12px 12px 18px; border-radius: var(--r-m); font-size: var(--t-small); }
 .banner.is-loss { background: var(--loss-tint); color: var(--loss); box-shadow: inset 0 0 0 1px rgba(180, 35, 57, 0.18); }
+/* stays in view below the sticky top bar while the user is scrolled down to the form they just used */
+.banner.is-pending { position: sticky; top: 72px; z-index: 15; background: var(--pending-tint); color: var(--pending); box-shadow: inset 0 0 0 1px rgba(138, 90, 18, 0.18), 0 8px 20px -14px rgba(38, 32, 53, 0.35); }
+.banner.is-pending span { display: inline-flex; align-items: center; gap: 10px; }
+.banner.is-pending .spin { border-color: rgba(138, 90, 18, 0.25); border-top-color: var(--pending); }
 
 .content { width: 100%; max-width: 1240px; padding: clamp(24px, 3vw, 44px) clamp(20px, 3vw, 40px) 48px; display: flex; flex-direction: column; gap: 20px; animation: page-in var(--d-slow) var(--ease) both; }
 @keyframes page-in { from { opacity: 0; transform: translate3d(0, 8px, 0); } }
@@ -232,6 +236,9 @@
 .tray-body { display: grid; gap: 4px; font-size: var(--t-small); color: var(--copy); min-width: 0; }
 .tray-body b { color: var(--ink); font-weight: 600; }
 .tray-body .link { justify-self: start; margin-top: 4px; font-size: var(--t-caption); }
+.tray-sync { display: inline-flex; align-items: center; gap: 8px; }
+.tray-sync .spin { width: 12px; height: 12px; border-width: 1.5px; }
+.tray-next { justify-self: start; margin-top: 10px; }
 .tray-steps { display: flex; gap: 6px; margin: 8px 0 2px; padding: 0; list-style: none; }
 .tray-steps li { flex: 1; padding-top: 6px; border-top: 2px solid var(--hairline); font: 600 10px / 1 var(--font-text); letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); transition: border-color var(--d-slow) var(--ease), color var(--d-slow) var(--ease); }
 .tray-steps li.done { border-color: var(--ok); color: var(--ok); }

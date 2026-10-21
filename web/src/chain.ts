@@ -181,7 +181,9 @@ export type MarketState = {
 
 export type GaugeState = { epoch: bigint; epochEnd: bigint; budget: bigint; totalWeight: bigint };
 
-export async function loadMarkets(d: Deployment): Promise<{ markets: MarketState[]; gauge: GaugeState; price: bigint }> {
+/** `at` pins every read to one block, so a refresh never mixes pre- and post-transaction state. */
+export async function loadMarkets(d: Deployment, at?: bigint): Promise<{ markets: MarketState[]; gauge: GaugeState; price: bigint }> {
+  const b = at === undefined ? {} : { blockNumber: at };
   const vaults = deployedVaults(d);
   const fields = [
     "name", "previewBooks", "capacity", "coverageBps", "isUndercovered", "seniorSharePrice", "juniorSharePrice",
@@ -192,10 +194,10 @@ export async function loadMarkets(d: Deployment): Promise<{ markets: MarketState
     (["vaultVotes", "weightOf", "coverCap"] as const).map((f) => ({ address: d.gauge, abi: gaugeAbi, functionName: f, args: [v] }) as const),
   );
   const [vr, gr, epoch, price] = await Promise.all([
-    client.multicall({ contracts: vaultReads, allowFailure: false }),
-    client.multicall({ contracts: gaugeReads, allowFailure: false }),
-    client.readContract({ address: d.gauge, abi: gaugeAbi, functionName: "currentEpoch" }),
-    client.readContract({ address: d.oracle, abi: oracleAbi, functionName: "price" }),
+    client.multicall({ contracts: vaultReads, allowFailure: false, ...b }),
+    client.multicall({ contracts: gaugeReads, allowFailure: false, ...b }),
+    client.readContract({ address: d.gauge, abi: gaugeAbi, functionName: "currentEpoch", ...b }),
+    client.readContract({ address: d.oracle, abi: oracleAbi, functionName: "price", ...b }),
   ]);
   const [epochEnd, budget] = await client.multicall({
     contracts: [
@@ -203,6 +205,7 @@ export async function loadMarkets(d: Deployment): Promise<{ markets: MarketState
       { address: d.gauge, abi: gaugeAbi, functionName: "epochBudget", args: [epoch] },
     ],
     allowFailure: false,
+    ...b,
   });
 
   const markets: MarketState[] = vaults.map((vault, i) => {
@@ -243,6 +246,7 @@ export async function loadMarkets(d: Deployment): Promise<{ markets: MarketState
       { address: m.params.irm, abi: irmAbi, functionName: "aprWad" } as const,
     ]),
     allowFailure: false,
+    ...b,
   });
   markets.forEach((m, i) => {
     const mk = more[i * 2] as readonly bigint[];
@@ -277,12 +281,13 @@ export type UserState = {
   veTokens: { id: bigint; power: bigint; votedThisEpoch: boolean; votes: Record<Address, bigint> }[];
 };
 
-export async function loadUser(d: Deployment, markets: MarketState[], epoch: bigint, user: Address): Promise<UserState> {
+export async function loadUser(d: Deployment, markets: MarketState[], epoch: bigint, user: Address, at?: bigint): Promise<UserState> {
+  const b = at === undefined ? {} : { blockNumber: at };
   const [btc, musd, mezo, veCount] = await Promise.all([
-    client.getBalance({ address: user }),
-    client.readContract({ address: d.musd, abi: erc20Abi, functionName: "balanceOf", args: [user] }),
-    client.readContract({ address: d.mezo, abi: erc20Abi, functionName: "balanceOf", args: [user] }),
-    client.readContract({ address: d.veBTC, abi: veAbi, functionName: "balanceOf", args: [user] }),
+    client.getBalance({ address: user, ...b }),
+    client.readContract({ address: d.musd, abi: erc20Abi, functionName: "balanceOf", args: [user], ...b }),
+    client.readContract({ address: d.mezo, abi: erc20Abi, functionName: "balanceOf", args: [user], ...b }),
+    client.readContract({ address: d.veBTC, abi: veAbi, functionName: "balanceOf", args: [user], ...b }),
   ]);
   const perVault: UserState["perVault"] = {};
   const reads = markets.flatMap((m) => [
@@ -295,7 +300,7 @@ export async function loadUser(d: Deployment, markets: MarketState[], epoch: big
     { address: d.gauge, abi: gaugeAbi, functionName: "accountVotes", args: [m.vault, user] } as const,
     { address: d.morpho, abi: morphoAbi, functionName: "position", args: [m.marketId, user] } as const,
   ]);
-  const res = (await client.multicall({ contracts: reads, allowFailure: false })) as unknown[];
+  const res = (await client.multicall({ contracts: reads, allowFailure: false, ...b })) as unknown[];
   markets.forEach((m, i) => {
     const r = res.slice(i * 8, i * 8 + 8);
     const req = r[4] as readonly [bigint, bigint, bigint];
@@ -318,6 +323,7 @@ export async function loadUser(d: Deployment, markets: MarketState[], epoch: big
     ? await client.multicall({
         contracts: Array.from({ length: n }, (_, i) => ({ address: d.veBTC, abi: veAbi, functionName: "ownerToNFTokenIdList", args: [user, BigInt(i)] }) as const),
         allowFailure: false,
+        ...b,
       })
     : [];
   const veTokens = await Promise.all(
@@ -328,7 +334,7 @@ export async function loadUser(d: Deployment, markets: MarketState[], epoch: big
         ...markets.map((m) => ({ address: d.gauge, abi: gaugeAbi, functionName: "tokenVotes", args: [id, m.vault] })),
       ];
       // Mixed-ABI batch: viem can't infer a heterogeneous spread, every result here is a uint256.
-      const [power, last, ...v] = (await client.multicall({ contracts: calls as never, allowFailure: false })) as bigint[];
+      const [power, last, ...v] = (await client.multicall({ contracts: calls as never, allowFailure: false, ...b })) as bigint[];
       const votes: Record<Address, bigint> = {};
       markets.forEach((m, i) => (votes[m.vault] = v[i]));
       return { id, power, votedThisEpoch: last === epoch + 1n, votes };
