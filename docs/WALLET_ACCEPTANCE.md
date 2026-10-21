@@ -25,7 +25,7 @@ Open the printed URL in a browser with the wallet extension. (Once hosted, use t
 
 Enable **only the wallet under test** in the browser's extension settings, except for rows W4 to W6, which test two wallets installed side by side.
 
-**How the app finds the wallet.** The app uses the standard EIP-1193 provider that the extension injects at `window.ethereum`. It does not yet choose between several installed wallets. With Rabby and OKX both enabled, it talks to whichever one currently controls `window.ethereum`; both wallets have a setting for this. Rows W4 to W6 check the result. If the wrong wallet opens, engineering will add EIP-6963 wallet selection, which lets the app list installed wallets and talk to the one you pick.
+**How the app finds the wallet.** Cosign's wallet dialog lists the wallets the browser announces through EIP-6963 and talks only to the one you pick: account reads, network switching and transaction signing all go through that wallet's own provider. It falls back to `window.ethereum` only when no wallet announces itself. It remembers which wallet you picked (not your address) so a reload restores through the same wallet. Rows W4 to W6 check this with real extensions.
 
 ### Mezo testnet network settings
 
@@ -93,6 +93,7 @@ Only what the founder saw in a real Rabby browser extension at `http://localhost
 | 2026-10-21 | Rabby shows 0.0500 testnet BTC. Not yet compared with the app's Positions page or the explorer. | W3 still NOT RUN | Founder report |
 | 2026-10-21 | Browser console not yet inspected. | — | Pending |
 | 2026-10-21 | **Bug:** after a refresh, Cosign showed the disconnected state although Rabby was still connected to the site. Cause: the app never asked the wallet for already-authorised accounts on startup. Fixed in commit `50d65d8`: the app restores the account with `eth_accounts` (no prompt), skips that after an explicit Disconnect, and handles late provider injection. 17 scripted scenarios pass with a stand-in provider; that is not Rabby evidence. | A8 FAIL before the fix; retest with Rabby pending | Founder report |
+| 2026-10-21 | New wallet dialog (EIP-6963 selection) replaces the direct Connect button. 46 scripted checks with two stand-in wallets pass, including Rabby being used while OKX controls `window.ethereum`; that is not Rabby evidence. Rows A1, A2, A7 and W4 to W6 now describe the dialog. | Retest A2, A3, A7, A8 and W4 to W6 with Rabby | Scripted only |
 
 ## W. Wallet setup and selection
 
@@ -101,22 +102,22 @@ Only what the founder saw in a real Rabby browser extension at `http://localhost
 | W1 | Add Mezo testnet by hand using the network settings table, then open the app. | The wallet shows Mezo Testnet, chain 31611. The app shows no wrong-network banner. | NOT RUN |
 | W2 | Connect, then compare the address in the app header with the wallet's active account. | The wallet under test opens its own prompt. Both show the same address. | PASS (Rabby, 2026-10-21): connected; header shows `0xf080…9371`, matching the active Rabby account. Founder screenshot. |
 | W3 | Compare balances: MUSD and MEZO on the app's Positions page against the wallet and the explorer's token page for your address. | All three agree, allowing for display rounding. | NOT RUN |
-| W4 | Enable Rabby and OKX Wallet together, with Rabby set as the default wallet. Reload and click Connect. | Rabby opens, not OKX, and the app shows the Rabby account. Write down which wallet opened. | NOT RUN |
-| W5 | Same, with OKX Wallet set as the default (Rabby's default-wallet switch off). Reload and click Connect. | OKX Wallet opens and the app shows the OKX account. If the other wallet opens, both open, or neither opens, mark FAIL and tell engineering. | NOT RUN |
-| W6 | With both enabled and connected, change which wallet is the default, then reload. | The app shows one account only, from the wallet now in control. Positions never mix accounts. | NOT RUN |
+| W4 | Enable Rabby and OKX Wallet together. Reload and click Connect wallet. | The dialog lists both as "Detected in this browser", each once, Rabby first and marked Preferred. Choosing Rabby opens Rabby's prompt, not OKX's, whichever extension controls `window.ethereum`. | NOT RUN |
+| W5 | Same, but choose OKX Wallet in the dialog. | OKX Wallet opens and the header shows the OKX account. Rabby does not open. | NOT RUN |
+| W6 | Connected through Rabby with both enabled: reload, then start one transaction and reject it in the wallet. | The reload restores the Rabby account without a prompt. The transaction prompt appears in Rabby, not OKX, and the app reports the rejection. Nothing is sent. | NOT RUN |
 
 ## A. Connect, network, accounts
 
 | # | Steps | Expected | Result |
 |---|---|---|---|
-| A1 | Open the app in a browser **without** a wallet extension. Click Connect wallet. | A clear message that no browser wallet was found. The website replay and the app's Recorded evidence page still work. | NOT RUN |
-| A2 | With the wallet installed, click Connect wallet. | Wallet asks for permission, then the header shows your short address and Disconnect. | PARTIAL (Rabby, 2026-10-21): Rabby connected and the header shows the short address. The Disconnect button is checked in A3. |
+| A1 | Open the app in a browser **without** a wallet extension. Click Connect wallet. | The wallet dialog says no wallet extension was found, shows Rabby and OKX Wallet as "Not installed" with Install links to their official sites, and lists nothing as detected. The website replay and the app's Recorded evidence page still work. | NOT RUN |
+| A2 | Click Connect wallet, then choose Rabby Wallet in the dialog. | The dialog shows "Approve in Rabby Wallet" while Rabby's own prompt is open, and does not show connected until Rabby approves. Then "Wallet connected", and the header shows your short address and Disconnect. | PARTIAL (Rabby, 2026-10-21, before the wallet dialog existed): Rabby connected and the header shows the short address. Retest through the dialog. |
 | A3 | Click Disconnect, then reload. | Header returns to Connect wallet and no positions are shown. After the reload it stays disconnected, even if the wallet still lists the site as connected. Connect works again afterwards. | NOT RUN |
 | A8 | While connected, reload the page; then close the tab and open the URL in a new tab. | Both times the same account is back without any wallet prompt, read from the wallet (`eth_accounts`). The header and Positions match the wallet. | NOT RUN |
 | A4 | Remove Mezo testnet from the wallet, then Connect. | Wallet offers to add the network (chain 31611, RPC `rpc.test.mezo.org`, symbol BTC). Approve. | NOT RUN |
 | A5 | Switch the wallet to another network (for example Ethereum). | A red banner says the wallet is on another network, with a Switch button. Switch works. | NOT RUN |
 | A6 | Switch to a second account in the wallet while on a market page. | Positions update to the new account. The old account's numbers never show. | NOT RUN |
-| A7 | Reject the connect or network request in the wallet. | A plain message ("You rejected the request in your wallet."). No crash. | NOT RUN |
+| A7 | Reject the connect request in the wallet; separately, reject the network switch. | Connect rejected: "Request declined", nothing shared, with Try again and Choose another wallet. Switch rejected: "Your wallet is on another network" with Switch to Mezo testnet and Not now. No crash. | NOT RUN |
 
 ## B. Lending (senior)
 
