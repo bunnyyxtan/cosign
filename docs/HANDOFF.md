@@ -44,7 +44,7 @@ Verified in the browser at 320, 390, 768, 1,024, 1,440 and 1,920 px. There is no
 1. Visual approval of the screenshots in `design/review/2026-10-21/`.
 2. High-resolution re-exports of `hero`, `lend`, `cosign`, `bold`, `steady` and `closing` (spec in `ASSET_REVIEW.md`). The current art is soft on retina screens.
 3. Rejected assets, if the founder disagrees: `cosigner-capital` (token implication) can be swapped in by renaming the file.
-4. Real-wallet acceptance with MetaMask (not run).
+4. Real-wallet acceptance with Rabby (primary) or OKX Wallet (not run). The app uses `window.ethereum` only; rows W4 to W6 decide whether it needs EIP-6963 wallet selection.
 5. The three small defects from the first review are fixed: the footer arrow wrap, the 768 px hero crop, and the overview's silent loss-read failure.
 6. Earlier standing items:
    - The hosting choice and account.

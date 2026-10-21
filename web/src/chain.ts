@@ -373,7 +373,7 @@ declare global {
 }
 
 export async function connectWallet(): Promise<Address> {
-  if (!window.ethereum) throw new Error("No browser wallet found. Install MetaMask or another EVM wallet to continue.");
+  if (!window.ethereum) throw new Error("No browser wallet found. Install Rabby, OKX Wallet or another EVM wallet to continue.");
   const [account] = (await window.ethereum.request({ method: "eth_requestAccounts" })) as Address[];
   await ensureChain();
   return account;
@@ -412,7 +412,7 @@ export async function ensureChain() {
   if ((await walletChainId()) !== mezoTestnet.id) throw new Error("Your wallet is not on Mezo testnet. Switch networks and try again.");
 }
 
-/** Ask the wallet to forget this site (MetaMask supports wallet_revokePermissions); always clears app state. */
+/** Ask the wallet to forget this site (wallet_revokePermissions, where supported); always clears app state. */
 export async function disconnectWallet() {
   try {
     await window.ethereum?.request({ method: "wallet_revokePermissions", params: [{ eth_accounts: {} }] });

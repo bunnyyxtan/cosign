@@ -108,7 +108,7 @@ npm run dev
 
 To run the production bundle exactly as it would be hosted: `npm run build && npm run preview`. Hosting notes are in [`docs/HOSTING.md`](docs/HOSTING.md).
 
-The app copies `contracts/deployments/31611.json` and `demo-run.json` into `web/public/` on start. Connecting a wallet requires an injected EIP-1193 wallet (for example MetaMask) on Mezo testnet; the app offers to add and switch the network.
+The app copies `contracts/deployments/31611.json` and `demo-run.json` into `web/public/` on start. Connecting a wallet requires an injected EIP-1193 browser wallet (Rabby is the primary test wallet, OKX Wallet the alternative) on Mezo testnet; the app offers to add and switch the network.
 
 `web/src/devWallet.ts` is a test-only wallet shim used for screenshots and automated runs. It installs only under `vite dev` when a local, git-ignored `web/.env.development.local` exists, and it is absent from the production bundle.
 
@@ -124,7 +124,7 @@ To repeat the live demo you need your own funded testnet wallets: copy `.env.exa
 | Dependency audit (production) | `cd web && npm audit --omit=dev` | 0 vulnerabilities |
 | Deployment against chain | `python -I contracts/script/verify_deploy.py` | 43/43 |
 | Deployed bytecode against source | `python -I contracts/script/verify_bytecode.py` | 8/8 |
-| Browser-wallet flows (MetaMask) | [`docs/WALLET_ACCEPTANCE.md`](docs/WALLET_ACCEPTANCE.md) | **Not run.** Needs a person with a wallet; no flow is claimed as passed |
+| Browser-wallet flows (Rabby, OKX Wallet) | [`docs/WALLET_ACCEPTANCE.md`](docs/WALLET_ACCEPTANCE.md) | **Not run.** Needs a person with a wallet; no flow is claimed as passed |
 
 CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) builds and tests the contracts and builds the app. It uses no wallets or secrets.
 

@@ -41,7 +41,7 @@ Checks: 52 pass, 6 fail as recorded. The failures are kept in the evidence with 
 | First-loss waterfall on a real liquidation | PASS | Measured twice |
 | Self-funded rewards reconcile | PASS | Exact to the wei at end of stream |
 | UI claims no stronger guarantee than the contracts | PASS | Guarantee panel states the limits |
-| Real-wallet (MetaMask) acceptance on testnet | **BLOCKED** | Not run: no wallet extension available to the automated session. Only a test-only wallet shim was used. A human run is required before any claim about browser-wallet flows |
+| Real-wallet acceptance on testnet (Rabby, OKX Wallet) | **BLOCKED** | Not run: no wallet extension available to the automated session. Only a test-only wallet shim was used. A human run is required before any claim about browser-wallet flows |
 | Independent audit | **NOT DONE** | Required before any mainnet use |
 | Production oracle | **BLOCKED for mainnet** | Single-owner demo oracle |
 | Direct-liquidation interest netting | Known limit | Bounded by interest since last sync; fixed only for the liquidator path |

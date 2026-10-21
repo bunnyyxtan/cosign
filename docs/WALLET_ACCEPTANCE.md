@@ -1,6 +1,6 @@
 # Real-wallet acceptance checklist
 
-**Status: BLOCKED. Not run.** The engineering session has no wallet extension, so no result below is a pass. Every row stays `NOT RUN` until a person completes it with MetaMask (or another EIP-1193 wallet) and records what they saw. The test-only wallet shim used during development is **not** valid evidence and must not be used here.
+**Status: BLOCKED. Not run.** The engineering session has no wallet extension, so no result below is a pass. Every row stays `NOT RUN` until a person completes it with a real browser wallet extension (see **Wallets under test**) and records what they saw. The test-only wallet shim used during development is **not** valid evidence and must not be used here.
 
 The redesigned app on `feat/premium-site` (served at `/app/`) changes the layout, not the wallet or transaction flows, so every row below applies to it. Its transaction tray steps through Sign, Mining and Confirmed. When testing, also check that it reads **Confirmed** only once the explorer shows the transaction succeeded, and that action buttons stay disabled while a transaction is in flight.
 
@@ -14,6 +14,30 @@ npm run preview        # serves the production bundle at http://localhost:4173
 ```
 
 Open the printed URL in a browser with the wallet extension. (Once hosted, use the public URL instead.)
+
+## Wallets under test
+
+| Priority | Wallet | Notes |
+|---|---|---|
+| 1 | **Rabby Wallet** (browser extension) | Primary. Run every row. |
+| 2 | **OKX Wallet** (browser extension) | Alternative. At minimum run W, A, B1, B5, F3, F4 and F5; mark rows you don't run SKIP. |
+| 3 | Another EVM wallet that supports custom networks | Only if neither works reliably on Mezo testnet. Record its name and version in the sign-off. |
+
+Enable **only the wallet under test** in the browser's extension settings, except for rows W4 to W6, which test two wallets installed side by side.
+
+**How the app finds the wallet.** The app uses the standard EIP-1193 provider that the extension injects at `window.ethereum`. It does not yet choose between several installed wallets. With Rabby and OKX both enabled, it talks to whichever one currently controls `window.ethereum`; both wallets have a setting for this. Rows W4 to W6 check the result. If the wrong wallet opens, engineering will add EIP-6963 wallet selection, which lets the app list installed wallets and talk to the one you pick.
+
+### Mezo testnet network settings
+
+Use these to add the network by hand if the app's add-network prompt fails (W1). They were checked against the live RPC on 21 October 2026, which returned `eth_chainId` `0x7b7b` and `net_version` `31611`.
+
+| Field | Value |
+|---|---|
+| Network name | Mezo Testnet |
+| Chain ID | 31611 (hex `0x7b7b`) |
+| RPC URL | `https://rpc.test.mezo.org` |
+| Currency symbol | BTC (18 decimals) |
+| Block explorer | `https://explorer.test.mezo.org` |
 
 ## Before you start (about 20 minutes)
 
@@ -39,21 +63,34 @@ The rows are grouped by feature; run them in this order so each step sets up the
 **Market state on 21 October 2026** (check the app before starting; it may have changed): Bold MEZO is under-covered by 13.24 MUSD, so its lender deposits are paused. Steady MEZO has no cover and no lenders.
 
 1. **No-wallet profile:** A1, G1, G2, G3.
-2. **Wallet profile, before adding Mezo testnet:** A4, A7, A2, A5.
+2. **Rabby only, before adding Mezo testnet:** A4 (the app adds the network), A7, A2, A5. Then W2 and W3.
 3. **Cover first** (it reopens Bold for lending): C2, then C1 with 20 MUSD on Bold.
-4. **Lending on Bold:** B3, B2, B1, B4.
+4. **Lending on Bold:** B3, B5, B2, B1, B4.
 5. **Votes:** D2 (on Steady, where you hold no cover), D1 (on Bold), D3.
 6. **Borrowing:** E1, E2, E3, E4, E5.
 7. **Resilience:** F3, F2, F1, F4.
 8. **Withdrawal notice:** C3, then C4 right away. Come back for C5 after the ready-at time shown in C3.
 9. **Rewards:** D4 once the app shows a pending amount.
-10. **Accounts and phone:** A6, A3, then F5 in the wallet's built-in browser.
+10. **Accounts and phone:** A6, A3, then F5 in the wallet's mobile in-app browser, if it has one (otherwise SKIP).
+11. **Two wallets side by side:** W4, W5, W6.
+12. **OKX Wallet:** add the network by hand (W1), then its minimum set.
 
 For every transaction, record its hash from the tray and open it in the explorer. The tray must read **Confirmed** only after the explorer shows success.
 
 If you are unsure whether a transaction went through, check the explorer or reload before sending it again. Never resend blind.
 
 Engineering can send testnet MUSD, MEZO or a veBTC position from the deployer wallet, but only once the founder approves the transfer.
+
+## W. Wallet setup and selection
+
+| # | Steps | Expected | Result |
+|---|---|---|---|
+| W1 | Add Mezo testnet by hand using the network settings table, then open the app. | The wallet shows Mezo Testnet, chain 31611. The app shows no wrong-network banner. | NOT RUN |
+| W2 | Connect, then compare the address in the app header with the wallet's active account. | The wallet under test opens its own prompt. Both show the same address. | NOT RUN |
+| W3 | Compare balances: MUSD and MEZO on the app's Positions page against the wallet and the explorer's token page for your address. | All three agree, allowing for display rounding. | NOT RUN |
+| W4 | Enable Rabby and OKX Wallet together, with Rabby set as the default wallet. Reload and click Connect. | Rabby opens, not OKX, and the app shows the Rabby account. Write down which wallet opened. | NOT RUN |
+| W5 | Same, with OKX Wallet set as the default (Rabby's default-wallet switch off). Reload and click Connect. | OKX Wallet opens and the app shows the OKX account. If the other wallet opens, both open, or neither opens, mark FAIL and tell engineering. | NOT RUN |
+| W6 | With both enabled and connected, change which wallet is the default, then reload. | The app shows one account only, from the wallet now in control. Positions never mix accounts. | NOT RUN |
 
 ## A. Connect, network, accounts
 
@@ -75,6 +112,7 @@ Engineering can send testnet MUSD, MEZO or a veBTC position from the deployer wa
 | B2 | In the approval prompt, lower the spending cap below the deposit and confirm. | The app says the approved amount is too low and does not continue. | NOT RUN |
 | B3 | Try to deposit more than the market's room to lend. | A plain message that there is not that much room. No funds move. | NOT RUN |
 | B4 | Withdraw part, then all, of your lender balance. | Balance updates. If the Morpho market has too little unborrowed MUSD, a plain "not enough unborrowed MUSD" message appears. | NOT RUN |
+| B5 | Enter a deposit larger than your MUSD balance. | The field is flagged with your wallet balance and the button is disabled. Nothing is sent to the wallet. | NOT RUN |
 
 ## C. Cover (junior) and withdrawal notice
 
@@ -113,7 +151,7 @@ Engineering can send testnet MUSD, MEZO or a veBTC position from the deployer wa
 | F2 | Throttle the network (browser dev tools, "Slow 3G") and run any transaction. | The toast stays on "waiting" until the receipt arrives. It does not report a false failure for a transaction that succeeded. | NOT RUN |
 | F3 | Reject a transaction in the wallet. | A plain rejection message. The form is still usable. | NOT RUN |
 | F4 | Spend nearly all gas BTC, then try a transaction. | The wallet or app reports insufficient gas in plain words. No stuck spinner. | NOT RUN |
-| F5 | Open the app on a phone with the wallet's built-in browser. | Layout fits the screen with no sideways scroll. Connect and one transaction work. | NOT RUN |
+| F5 | Open the app on a phone in the wallet's built-in browser, if its mobile app has one (otherwise SKIP). | Layout fits the screen with no sideways scroll. Connect and one transaction work. | NOT RUN |
 
 ## G. Understanding (for a first-time visitor)
 
@@ -127,6 +165,7 @@ Engineering can send testnet MUSD, MEZO or a veBTC position from the deployer wa
 
 | Tester | Wallet and version | Browser | Date | Overall |
 |---|---|---|---|---|
-| | | | | NOT RUN |
+| | Rabby, version: | | | NOT RUN |
+| | OKX Wallet, version: | | | NOT RUN |
 
-Do not describe browser-wallet flows as verified anywhere (README, pitch, submission) until section A to F are filled in with real results.
+Do not describe browser-wallet flows as verified anywhere (README, pitch, submission) until sections W and A to F are filled in with real results.
