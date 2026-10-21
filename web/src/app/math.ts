@@ -38,6 +38,21 @@ export const minCoverBps = (m: MarketState) => 10_000n / (m.maxLeverage + 1n);
 /** Rounds up to the cent, so a shortfall is never understated. */
 export const up2 = (v: bigint) => ((v + 10n ** 16n - 1n) / 10n ** 16n) * 10n ** 16n;
 
+/** A co-signer's share of the market's cover from share accounting (their shares / all cover shares), in basis
+ *  points rounded down. Null when the market has no cover shares. Not the market's cover ratio (coverageBps). */
+export function coverShareBps(mine: bigint, total: bigint) {
+  if (total === 0n) return null;
+  return (mine * 10_000n) / total;
+}
+
+/** "33.67%", "100%", "<0.01%" for a holding too small to show, "0%" for none, "—" when the market has no cover. */
+export function fmtCoverShare(mine: bigint, total: bigint) {
+  const bps = coverShareBps(mine, total);
+  if (bps === null) return "—";
+  if (mine > 0n && bps === 0n) return "<0.01%";
+  return pctTrim(bps);
+}
+
 /** Rounds down to the cent, so room and withdrawable amounts are never overstated. */
 export const down2 = (v: bigint) => (v / 10n ** 16n) * 10n ** 16n;
 

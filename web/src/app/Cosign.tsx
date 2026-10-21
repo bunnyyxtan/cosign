@@ -3,7 +3,7 @@ import { addrUrl, gaugeAbi, vaultAbi, type MarketState } from "../chain";
 import { ArrowNE } from "../ui/Icon";
 import type { Ctx } from "./ctx";
 import { MarketStatus } from "./Markets";
-import { Amount, coverFreeAfter, coverShortfall, down2, fmt, minCoverBps, pct, roomAfterCover, short, Stack, toWei, up2 } from "./ui";
+import { Amount, coverFreeAfter, coverShortfall, down2, fmt, fmtCoverShare, minCoverBps, pct, roomAfterCover, short, Stack, toWei, up2 } from "./ui";
 
 export function Cosign(ctx: Ctx) {
   const { account, connect, markets } = ctx;
@@ -77,9 +77,9 @@ function CoverPanel({ m, user, send, approveIfNeeded, d, busy }: Ctx & { m: Mark
       <Stack m={m} compact />
       <div className="held held-grid">
         <div><span>Your cover</span><b className="num">{user ? `${fmt(me?.junior ?? 0n)} MUSD` : "…"}</b></div>
+        <div><span>Your share of cover</span><b className="num">{user ? fmtCoverShare(me?.juniorShares ?? 0n, m.totalJuniorShares) : "…"}</b></div>
         <div><span>Market cover</span><b className="num">{fmt(m.junior)} MUSD</b></div>
-        <div><span>Share of vault</span><b className="num">{pct(m.coverageBps)}</b></div>
-        <div><span>Minimum</span><b className="num">{pct(minCoverBps(m), 0)}</b></div>
+        <div><span>Market cover ratio</span><b className="num">{pct(m.coverageBps)} <small className="held-sub">minimum {pct(minCoverBps(m), 0)}</small></b></div>
       </div>
       {gap > 0n && <p className="note is-loss"><b>{fmt(up2(gap))} MUSD</b> more cover reopens lender deposits here.</p>}
       <div className="field">

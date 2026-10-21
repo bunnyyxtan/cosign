@@ -1,6 +1,6 @@
 // node scripts/check-math.ts — asserts the cover-shortfall and rounding rules the app shows to users.
 import assert from "node:assert/strict";
-import { coverFreeAfter, coverShortfall, down2, fmt, minCoverBps, pctTrim, roomAfterCover, up2 } from "../src/app/math.ts";
+import { coverFreeAfter, coverShareBps, coverShortfall, down2, fmt, fmtCoverShare, minCoverBps, pctTrim, roomAfterCover, up2 } from "../src/app/math.ts";
 
 const E = 10n ** 18n;
 // Bold MEZO as read on 21 Oct 2026: 1,000.0000532 MUSD senior behind 39.3999468 MUSD cover, 19x cap
@@ -38,4 +38,14 @@ assert.equal(roomAfterCover(atCap), 0n);
 assert.equal(coverFreeAfter(atCap), 0n);
 assert.equal(roomAfterCover({ senior: 0n, junior: 5n * E, maxLeverage: 0n } as never, twenty), 0n);
 assert.equal(down2(128_599_999_999_999_999_999n), 128_590_000_000_000_000_000n);
+// A co-signer's share of cover comes from share accounting, not the market's cover ratio. Founder test wallet on Bold,
+// read on 21 Oct 2026: 203,045,959.5e18 of 603,045,959.5e18 cover shares, while the cover ratio is 5.6%.
+const mine = 203_045_959_495_211_582_983_073_218n, all = 603_045_959_495_211_582_983_073_218n;
+assert.equal(coverShareBps(mine, all), 3367n);          // 33.67%, rounded down (exact 33.6702%)
+assert.equal(fmtCoverShare(mine, all), "33.67%");
+assert.equal(fmtCoverShare(all, all), "100%");          // sole co-signer
+assert.equal(fmtCoverShare(0n, all), "0%");
+assert.equal(fmtCoverShare(1n, all), "<0.01%");          // a holding too small to show is never shown as 0
+assert.equal(fmtCoverShare(0n, 0n), "—");                // no cover at all (e.g. empty Steady, or a wiped round)
+assert.equal(coverShareBps(all - 1n, all), 9999n);       // never rounds up to 100% while someone else holds cover
 console.log("math ok");

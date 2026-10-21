@@ -150,6 +150,7 @@
 .held b { font-weight: 600; color: var(--ink); }
 .held-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
 .held-grid > div { display: grid; gap: 4px; }
+.held-sub { font-size: var(--t-caption); font-weight: 500; color: var(--muted); }
 .held-grid span { font-size: var(--t-caption); }
 .connect-gate { display: grid; gap: 12px; padding: 16px; border-radius: var(--r-s); background: var(--porcelain); font-size: var(--t-small); color: var(--copy); }
 .side-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; background: var(--porcelain); color: var(--ink); text-decoration: none; transition: background-color var(--d-base) var(--ease); }
