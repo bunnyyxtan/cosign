@@ -92,6 +92,7 @@ Only what the founder saw in a real Rabby browser extension at `http://localhost
 | 2026-10-21 | App shows "Mezo testnet · 31611" and live market data; no wrong-network banner. Not recorded: whether Rabby was already on Mezo testnet or the app switched it. | A4, A5 still NOT RUN | Founder screenshot |
 | 2026-10-21 | Rabby shows 0.0500 testnet BTC. Not yet compared with the app's Positions page or the explorer. | W3 still NOT RUN | Founder report |
 | 2026-10-21 | Browser console not yet inspected. | — | Pending |
+| 2026-10-21 | **Bug:** after a refresh, Cosign showed the disconnected state although Rabby was still connected to the site. Cause: the app never asked the wallet for already-authorised accounts on startup. Fixed in commit `50d65d8`: the app restores the account with `eth_accounts` (no prompt), skips that after an explicit Disconnect, and handles late provider injection. 17 scripted scenarios pass with a stand-in provider; that is not Rabby evidence. | A8 FAIL before the fix; retest with Rabby pending | Founder report |
 
 ## W. Wallet setup and selection
 
@@ -110,7 +111,8 @@ Only what the founder saw in a real Rabby browser extension at `http://localhost
 |---|---|---|---|
 | A1 | Open the app in a browser **without** a wallet extension. Click Connect wallet. | A clear message that no browser wallet was found. The website replay and the app's Recorded evidence page still work. | NOT RUN |
 | A2 | With the wallet installed, click Connect wallet. | Wallet asks for permission, then the header shows your short address and Disconnect. | PARTIAL (Rabby, 2026-10-21): Rabby connected and the header shows the short address. The Disconnect button is checked in A3. |
-| A3 | Click Disconnect. | Header returns to Connect wallet. No positions shown. Reloading does not reconnect silently. | NOT RUN |
+| A3 | Click Disconnect, then reload. | Header returns to Connect wallet and no positions are shown. After the reload it stays disconnected, even if the wallet still lists the site as connected. Connect works again afterwards. | NOT RUN |
+| A8 | While connected, reload the page; then close the tab and open the URL in a new tab. | Both times the same account is back without any wallet prompt, read from the wallet (`eth_accounts`). The header and Positions match the wallet. | NOT RUN |
 | A4 | Remove Mezo testnet from the wallet, then Connect. | Wallet offers to add the network (chain 31611, RPC `rpc.test.mezo.org`, symbol BTC). Approve. | NOT RUN |
 | A5 | Switch the wallet to another network (for example Ethereum). | A red banner says the wallet is on another network, with a Switch button. Switch works. | NOT RUN |
 | A6 | Switch to a second account in the wallet while on a market page. | Positions update to the new account. The old account's numbers never show. | NOT RUN |
