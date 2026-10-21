@@ -420,6 +420,12 @@ function Closing() {
   );
 }
 
+// keeps the arrow on the line of the last word, so a narrow column never strands it alone
+function ext(href: string, label: string) {
+  const i = label.lastIndexOf(" ") + 1;
+  return <a href={href} target="_blank" rel="noreferrer">{label.slice(0, i)}<span className="nowrap">{label.slice(i)} <ArrowNE size={12} /></span></a>;
+}
+
 function Footer() {
   return (
     <footer className="site-footer">
@@ -434,9 +440,9 @@ function Footer() {
         </nav>
         <nav aria-label="Verify">
           <span className="eyebrow">Verify</span>
-          <a href={REPO} target="_blank" rel="noreferrer">Source on GitHub <ArrowNE size={12} /></a>
-          <a href={EVIDENCE} target="_blank" rel="noreferrer">Testnet evidence <ArrowNE size={12} /></a>
-          <a href={EXPLORER} target="_blank" rel="noreferrer">Mezo testnet explorer <ArrowNE size={12} /></a>
+          {ext(REPO, "Source on GitHub")}
+          {ext(EVIDENCE, "Testnet evidence")}
+          {ext(EXPLORER, "Mezo testnet explorer")}
         </nav>
         <p className="footer-legal t-caption">Unaudited prototype on Mezo testnet. Cover is first-loss capital, not insurance or a guarantee. Testnet tokens have no value.</p>
       </div>

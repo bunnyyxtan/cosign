@@ -32,6 +32,29 @@ Suggested amounts: 150 MUSD, 20 MEZO, a few cents of testnet BTC for gas.
 
 For each row, write PASS, FAIL or SKIP, the date, and one line on what you saw. For any FAIL, attach a screenshot and the transaction link from the toast. Mark a row PASS only if the **expected** column happened exactly.
 
+## Walkthrough order for this build
+
+The rows are grouped by feature; run them in this order so each step sets up the next and no transaction is repeated.
+
+**Market state on 21 October 2026** (check the app before starting; it may have changed): Bold MEZO is under-covered by 13.24 MUSD, so its lender deposits are paused. Steady MEZO has no cover and no lenders.
+
+1. **No-wallet profile:** A1, G1, G2, G3.
+2. **Wallet profile, before adding Mezo testnet:** A4, A7, A2, A5.
+3. **Cover first** (it reopens Bold for lending): C2, then C1 with 20 MUSD on Bold.
+4. **Lending on Bold:** B3, B2, B1, B4.
+5. **Votes:** D2 (on Steady, where you hold no cover), D1 (on Bold), D3.
+6. **Borrowing:** E1, E2, E3, E4, E5.
+7. **Resilience:** F3, F2, F1, F4.
+8. **Withdrawal notice:** C3, then C4 right away. Come back for C5 after the ready-at time shown in C3.
+9. **Rewards:** D4 once the app shows a pending amount.
+10. **Accounts and phone:** A6, A3, then F5 in the wallet's built-in browser.
+
+For every transaction, record its hash from the tray and open it in the explorer. The tray must read **Confirmed** only after the explorer shows success.
+
+If you are unsure whether a transaction went through, check the explorer or reload before sending it again. Never resend blind.
+
+Engineering can send testnet MUSD, MEZO or a veBTC position from the deployer wallet, but only once the founder approves the transfer.
+
 ## A. Connect, network, accounts
 
 | # | Steps | Expected | Result |

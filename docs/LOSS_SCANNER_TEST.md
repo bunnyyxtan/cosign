@@ -8,7 +8,7 @@
 - "Could not read loss events from Mezo testnet. Reload the page to try again." if it fails.
 - "No losses yet" only after a successful scan finds none.
 
-The overview omits "Last loss" until losses are known.
+The overview omits "Last loss" until losses are known. If the read fails, each market card says that its loss history is unavailable.
 
 **How it was tested.** Production build (`vite preview`), each scenario in a fresh browser context with no cache. Every `eth_getLogs` request to `rpc.test.mezo.org` was intercepted, and the Losses panel on Bold MEZO was sampled every 500 ms. The viem transport retries a failed request four times with exponential backoff.
 
@@ -22,12 +22,11 @@ The overview omits "Last loss" until losses are known.
 | S6 Logs endpoint down (HTTP 503 always) | loading → read error after 5 attempts | error | no |
 | S7 Five reloads mid-scan, then settle | loading → 2 losses on every load | 2 rows | no |
 | S8 Held 35 s across two 15 s refreshes | 2 losses throughout, no flicker | 2 rows | no |
-| S9 Markets overview with logs down | no "Last loss" claim | no claim | no |
+| S9 Markets overview with logs down | "Loss history unavailable" on each card | error note | no |
 
 **Coverage.** Every run used windows of at most 10,000 blocks. The first window started at the deployment block (16,261,540) and there were no gaps between windows, including when the chain head advanced during S7. No load produced duplicate rows.
 
 **Known limits.**
 
 - A failed scan is not retried automatically; the user reloads.
-- The overview does not say that the loss read failed; it only avoids claiming none.
 - Scan time grows by one request per 10,000 blocks: a few seconds today. Beyond a few hundred windows the app should index from a known checkpoint instead.

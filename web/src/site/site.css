@@ -76,7 +76,8 @@ html.menu-open { overflow: hidden; }
 @keyframes band-in { from { opacity: 0; } }
 @media (min-width: 641px) and (max-width: 1023px) {
   .hero-card { min-height: 0; }
-  .hero-band { flex: none; height: 360px; min-height: 0; }
+  /* clear the CTAs and shorten the feather so the ring tops are not faded into the card */
+  .hero-band { flex: none; height: 360px; min-height: 0; margin-top: 12px; --fade: 22%; }
   .hero-band { --focal: 100% 100%; }
 }
 @media (max-width: 640px) {
@@ -301,6 +302,7 @@ html.menu-open { overflow: hidden; }
 .site-footer nav .eyebrow { margin-bottom: 4px; }
 .site-footer nav a { display: block; width: fit-content; font-size: var(--t-small); color: var(--copy); text-decoration: none; }
 .site-footer nav a svg { display: inline; margin-left: 5px; vertical-align: -1px; }
+.site-footer nav .nowrap { white-space: nowrap; }
 .site-footer nav a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
 .footer-legal { grid-column: 1 / -1; padding-top: 28px; border-top: 1px solid var(--hairline); }
 @media (max-width: 720px) { .footer-in { grid-template-columns: 1fr 1fr; } .footer-brand { grid-column: 1 / -1; } }

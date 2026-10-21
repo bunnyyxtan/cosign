@@ -15,7 +15,7 @@ export function MarketStatus({ m }: { m: MarketState }) {
 
 // ================================================================ overview
 
-export function Markets({ markets, gauge, price, losses }: Ctx) {
+export function Markets({ markets, gauge, price, losses, lossesFailed }: Ctx) {
   return (
     <>
       <header className="page-head">
@@ -66,6 +66,7 @@ export function Markets({ markets, gauge, price, losses }: Ctx) {
                   <b>{fmt(up2(short))} MUSD</b> more cover reopens lender deposits. Until then, deposits and cover withdrawals are paused; borrowing on Morpho is not.
                 </p>
               )}
+              {!losses && lossesFailed && <p className="note is-loss" role="alert">Loss history unavailable: could not read loss events from Mezo testnet. Reload the page to try again.</p>}
               {loss && <p className="note">Last loss {fmt(loss.loss)} MUSD: cover paid {fmt(loss.byJunior)}, lenders paid {fmt(loss.bySenior)}. <a href={txUrl(loss.tx)} target="_blank" rel="noreferrer">Transaction</a></p>}
 
               <div className="mk-foot">

@@ -4,7 +4,7 @@ _21 October 2026. Status: **waiting for founder and product-lead visual approval
 
 ## Where things are
 
-- **Branch:** `feat/premium-site`, pushed to `origin`, five commits on top of `main` (`7effae5`). Not merged, no PR, not deployed.
+- **Branch:** `feat/premium-site`, pushed to `origin`, six commits on top of `main` (`7effae5`). Not merged, no PR, not deployed.
 - **Rollback point:** local tag `rollback/pre-premium-site` (= `main` at `7effae5`; not pushed).
 - **Contracts, deployment addresses and recorded evidence:** unchanged. `git diff rollback/pre-premium-site -- contracts` is empty.
 - **Review screenshots** (full resolution, local only, gitignored): `design/review/2026-10-21/`.
@@ -45,15 +45,16 @@ Verified in the browser at 320, 390, 768, 1,024, 1,440 and 1,920 px. There is no
 2. High-resolution re-exports of `hero`, `lend`, `cosign`, `bold`, `steady` and `closing` (spec in `ASSET_REVIEW.md`). The current art is soft on retina screens.
 3. Rejected assets, if the founder disagrees: `cosigner-capital` (token implication) can be swapped in by renaming the file.
 4. Real-wallet acceptance with MetaMask (not run).
-5. Known small defects, held back pending review:
-   - At 390 px the footer's "Mezo testnet explorer ↗" arrow wraps onto its own line.
-   - At 768 px the glass ring is slightly cut at the image edge.
-   - The overview does not say when the loss read failed.
+5. The three small defects from the first review are fixed: the footer arrow wrap, the 768 px hero crop, and the overview's silent loss-read failure.
 6. Earlier standing items:
    - The hosting choice and account.
    - Test assets for the tester.
    - Legal review of the Morpho GPL licence against Cosign's MIT licence.
    - `research/` notes in public history.
+
+## Git attribution
+
+The first five branch commits (`f3a1cd2` to `9e665b0`) carry an AI `Co-Authored-By` trailer that the coding agent added; `main` has none. The sixth commit and later do not. A local `commit-msg` hook now rejects AI trailers and any author other than Bunnyy, and the project's Claude Code settings turn commit attribution off. Removing the trailers from the five pushed commits needs a history rewrite and force-push, so it waits for founder approval.
 
 ## Re-running the verification
 
