@@ -48,9 +48,10 @@ Use a **fresh test account** in the wallet. Never use an account that holds real
 | BTC for gas | Mezo testnet faucet. It has a CAPTCHA, so you complete it. |
 | MEZO | Mezo testnet faucet. |
 | MUSD | Open a small trove on Mezo testnet, **or** ask engineering to send testnet MUSD from the deployer wallet. Testnet tokens have no value. |
-| A veBTC lock (for voting) | Lock a little testnet BTC in Mezo's veBTC lock page, **or** ask engineering to transfer a testnet veBTC position to your account. |
+| A veBTC lock (for voting) | Lock about 0.001 testnet BTC in Mezo's veBTC contract from your own test wallet (two transactions: approve BTC, then create the lock). The deployer holds no veBTC on 21 October 2026, so there is none to transfer. |
+| A funded rewards epoch (D4 only) | Anyone can fund the gauge with MEZO. Engineering can fund it from the deployer, with founder approval. Epochs last 10 minutes; distribution is permissionless once the epoch ends. |
 
-Suggested amounts: 150 MUSD, 20 MEZO, a few cents of testnet BTC for gas.
+Minimum for sections B to F: about 35 MUSD (20 cover, 10 lending, a little to repay interest) and 5 MEZO (collateral). Suggested: 50 MUSD and 10 MEZO. Gas is negligible: a heavy transaction costs about 0.00000000006 BTC at 21 October 2026 prices. The withdrawal notice period is 10 minutes.
 
 ## How to record a result
 
