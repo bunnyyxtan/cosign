@@ -139,7 +139,7 @@ Only what the founder saw in a real Rabby browser extension at `http://localhost
 | # | Steps | Expected | Result |
 |---|---|---|---|
 | C1 | Co-sign page, Bold: post 20 MUSD cover. | Approve, then deposit. "Your cover" shows about 20. | NOT RUN |
-| C2 | Check "Opens room for up to…" before posting. | Shows 19 × the amount for Bold, 9 × for Steady. | NOT RUN |
+| C2 | Before posting, type the amount and read the hint under "Post cover". | It shows the room for new lender deposits after the deposit, from live vault state, rounded down. For 20 MUSD on Bold on 21 October 2026: 128.59 MUSD (now 0.00), and cover can shrink by at most 6.76 MUSD while today's lenders stay. For an amount below the shortfall it says how much is still short. On empty Steady, 20 MUSD shows 180.00. | NOT RUN |
 | C3 | Click Request to withdraw all cover. | A ready-at time appears. Your cover still shows and still pays losses until then. | NOT RUN |
 | C4 | Before the time passes, try to withdraw (use the wallet's contract interaction or reload and look for the button). | The Withdraw button is absent. If reachable, a plain "notice period has not ended" message. | NOT RUN |
 | C5 | After the time passes, click Withdraw cover. | Cover returns to your wallet. If it would drop the market below minimum cover, a plain message says so and nothing moves. | NOT RUN |
