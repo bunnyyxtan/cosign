@@ -98,6 +98,7 @@ Only what the founder saw in a real Rabby browser extension at `http://localhost
 | 2026-10-21 | UX note for later: clicking the connected address showed the wallet list instead of account management. Not reproduced with a stand-in wallet (after a fresh connect, after a reload restore and on Positions, the address opened "Your wallet"); exact steps needed. | Open issue, not fixed | Founder report |
 | 2026-10-21 | Founder-approved funding: the deployer sent exactly 50 MUSD to the test wallet `0xF080…9371`. Tx [`0xa54aa30f…f7d1`](https://explorer.test.mezo.org/tx/0xa54aa30f7d17de22321acf6fee1b9ac7b351020b8bddaf20d36880f31ab7f7d1), block 16,281,236, status success. MUSD before → after: deployer 360.60 → 310.60, test wallet 0 → 50.00. The test wallet already held 100 MEZO (not from the deployer) and 0.05 BTC. | Funding, not a test row | Chain reads |
 | 2026-10-21 | Cosign's Positions page, for the test wallet's address, reads MUSD 50.00, MEZO 100.0000, BTC 0.050000 and 0 veBTC, matching the chain. Read through a stand-in that only reports the address, so this is not Rabby evidence. | W3 still needs the founder's Rabby and explorer comparison | Scripted read |
+| 2026-10-21 | Positions page in Rabby: 50.00 MUSD, 100.0000 MEZO, 0.050000 BTC, zero positions for `0xF080…9371`. | W3 PARTIAL | Founder screenshot, real Rabby |
 
 ## W. Wallet setup and selection
 
@@ -105,7 +106,7 @@ Only what the founder saw in a real Rabby browser extension at `http://localhost
 |---|---|---|---|
 | W1 | Add Mezo testnet by hand using the network settings table, then open the app. | The wallet shows Mezo Testnet, chain 31611. The app shows no wrong-network banner. | NOT RUN |
 | W2 | Connect, then compare the address in the app header with the wallet's active account. | The wallet under test opens its own prompt. Both show the same address. | PASS (Rabby, 2026-10-21): connected; header shows `0xf080…9371`, matching the active Rabby account. Founder screenshot. |
-| W3 | Compare balances: MUSD and MEZO on the app's Positions page against the wallet and the explorer's token page for your address. | All three agree, allowing for display rounding. | NOT RUN |
+| W3 | Compare balances: MUSD and MEZO on the app's Positions page against the wallet and the explorer's token page for your address. | All three agree, allowing for display rounding. | PARTIAL (Rabby, 2026-10-21): Cosign Positions shows 50.00 MUSD, 100.0000 MEZO, 0.050000 BTC and no positions, matching chain reads. Rabby and explorer comparison pending. Founder screenshot. |
 | W4 | Enable Rabby and OKX Wallet together. Reload and click Connect wallet. | The dialog lists both as "Detected in this browser", each once, Rabby first and marked Preferred. Choosing Rabby opens Rabby's prompt, not OKX's, whichever extension controls `window.ethereum`. | NOT RUN |
 | W5 | Same, but choose OKX Wallet in the dialog. | OKX Wallet opens and the header shows the OKX account. Rabby does not open. | NOT RUN |
 | W6 | Connected through Rabby with both enabled: reload, then start one transaction and reject it in the wallet. | The reload restores the Rabby account without a prompt. The transaction prompt appears in Rabby, not OKX, and the app reports the rejection. Nothing is sent. | NOT RUN |
