@@ -54,7 +54,8 @@ export type DemoRun = {
 export async function loadDeployment(): Promise<{ d: Deployment | null; demo: DemoRun | null }> {
   const get = async (f: string) => {
     try {
-      const r = await fetch(`./${f}`, { cache: "no-store" });
+      // Data files sit at the site root; the app is served from /app/.
+      const r = await fetch(`../${f}`, { cache: "no-store" });
       return r.ok ? await r.json() : null;
     } catch {
       return null;
