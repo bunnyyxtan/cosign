@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowNE } from "../ui/Icon";
 import { FORGONE, SCALE, STAGES, tx } from "./recorded";
+import "./replay.css";
 
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const money = (n: number, dp = 2) => n.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp });

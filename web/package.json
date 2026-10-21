@@ -7,7 +7,8 @@
     "sync": "node scripts/sync.mjs",
     "dev": "npm run sync && vite",
     "build": "npm run sync && tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check": "node scripts/check-math.ts"
   },
   "dependencies": {
     "react": "^18.3.1",

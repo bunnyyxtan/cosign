@@ -117,7 +117,7 @@
 .art-blank.dark .art-label { color: var(--on-dark-muted); background: rgba(0, 0, 0, 0.25); }
 
 /* ---------------------------------------------------------------- fields */
-.field { display: grid; gap: 8px; }
+.field { display: grid; gap: 8px; min-width: 0; }
 .field > label { font: 600 var(--t-small) / 1.2 var(--font-text); color: var(--ink); }
 .field-hint { font-size: var(--t-caption); line-height: 1.45; color: var(--muted); }
 .field-hint.is-error { color: var(--loss); }
@@ -128,12 +128,20 @@
 .amount:hover { box-shadow: inset 0 0 0 1px #c9c2d5; }
 .amount:focus-within { box-shadow: inset 0 0 0 1.5px var(--focus), 0 0 0 4px rgba(92, 76, 133, 0.12); }
 .amount.is-error { box-shadow: inset 0 0 0 1.5px var(--loss); }
-.amount input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; font: 600 1.375rem / 1 var(--font-display); letter-spacing: -0.02em; color: var(--ink); font-variant-numeric: tabular-nums; }
+.amount input { flex: 1; width: 0; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; font: 600 1.375rem / 1 var(--font-display); letter-spacing: -0.02em; color: var(--ink); font-variant-numeric: tabular-nums; }
 .amount input::placeholder { color: #b7b1c1; }
 .amount-unit { font: 600 var(--t-caption) / 1 var(--font-text); letter-spacing: 0.06em; color: var(--muted); }
 .amount-max { height: 36px; padding: 0 12px; border: 0; border-radius: var(--r-s); background: var(--mist); font: 600 var(--t-caption) / 1 var(--font-text); color: var(--ink); cursor: pointer; transition: background-color var(--d-base) var(--ease); }
 .amount-max:hover { background: var(--lilac); }
 @media (pointer: coarse) { .amount-max { height: 44px; } }
+
+/* ---------------------------------------------------------------- capital-stack swatches (pattern + colour, never colour alone) */
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.sw-cover { background: repeating-linear-gradient(135deg, var(--cover) 0 3px, var(--cover-deep) 3px 4.5px); }
+.sw-senior { background: var(--senior); }
+.sw-lost { background: repeating-linear-gradient(45deg, var(--loss) 0 1.5px, transparent 1.5px 4px); box-shadow: inset 0 0 0 1px var(--loss); }
+.sw-room { background: transparent; box-shadow: inset 0 0 0 1.5px var(--room); }
+.sw-min { display: inline-block; width: 0; height: 12px; border-left: 1.5px dashed var(--ink); flex: none; }
 
 /* ---------------------------------------------------------------- figures */
 .figure-k { font: 500 var(--t-caption) / 1.3 var(--font-text); color: var(--muted); }

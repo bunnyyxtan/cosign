@@ -341,18 +341,18 @@ export type LossEvent = { vault: Address; loss: bigint; byJunior: bigint; bySeni
 
 export async function loadLosses(d: Deployment): Promise<LossEvent[]> {
   const latest = await client.getBlockNumber();
+  // Mezo's RPC rejects log queries wider than 10,000 blocks; scan in windows, a few at a time.
+  const step = 10_000n;
+  const windows: [bigint, bigint][] = [];
+  for (let from = BigInt(d.block); from <= latest; from += step) windows.push([from, from + step - 1n > latest ? latest : from + step - 1n]);
   const out: LossEvent[] = [];
-  const step = 50_000n;
-  for (let from = BigInt(d.block); from <= latest; from += step) {
-    const to = from + step - 1n > latest ? latest : from + step - 1n;
-    const logs = await client.getContractEvents({
-      address: deployedVaults(d),
-      abi: vaultAbi,
-      eventName: "LossAbsorbed",
-      fromBlock: from,
-      toBlock: to,
-    });
-    for (const l of logs) {
+  for (let i = 0; i < windows.length; i += 4) {
+    const batch = await Promise.all(
+      windows.slice(i, i + 4).map(([fromBlock, toBlock]) =>
+        client.getContractEvents({ address: deployedVaults(d), abi: vaultAbi, eventName: "LossAbsorbed", fromBlock, toBlock }),
+      ),
+    );
+    for (const l of batch.flat()) {
       const a = l.args as { loss: bigint; byJunior: bigint; bySenior: bigint };
       out.push({ vault: l.address, loss: a.loss, byJunior: a.byJunior, bySenior: a.bySenior, tx: l.transactionHash, block: l.blockNumber });
     }
