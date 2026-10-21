@@ -38,11 +38,29 @@ export const minCoverBps = (m: MarketState) => 10_000n / (m.maxLeverage + 1n);
 /** Rounds up to the cent, so a shortfall is never understated. */
 export const up2 = (v: bigint) => ((v + 10n ** 16n - 1n) / 10n ** 16n) * 10n ** 16n;
 
-/** Cover still needed before lender deposits reopen (zero when the market is covered). Rounded up to the wei. */
+/** Rounds down to the cent, so room and withdrawable amounts are never overstated. */
+export const down2 = (v: bigint) => (v / 10n ** 16n) * 10n ** 16n;
+
+/** Cover the current lenders require: lenders may hold at most maxLeverage x cover. Rounded up to the wei. */
+const coverNeeded = (m: MarketState) => (m.maxLeverage === 0n ? 0n : (m.senior + m.maxLeverage - 1n) / m.maxLeverage);
+
+/** Cover still needed before lender deposits reopen (zero when the market is covered). */
 export function coverShortfall(m: MarketState) {
-  if (m.maxLeverage === 0n) return 0n;
-  const need = (m.senior + m.maxLeverage - 1n) / m.maxLeverage;
+  const need = coverNeeded(m);
   return need > m.junior ? need - m.junior : 0n;
+}
+
+/** Room for new lender deposits once `extra` cover is added. Existing lenders use up cap before new ones do. */
+export function roomAfterCover(m: MarketState, extra = 0n) {
+  const cap = (m.junior + extra) * m.maxLeverage;
+  return cap > m.senior ? cap - m.senior : 0n;
+}
+
+/** How far cover could shrink, once `extra` is added, before it drops below what today's lenders require. */
+export function coverFreeAfter(m: MarketState, extra = 0n) {
+  if (m.senior === 0n) return m.junior + extra;
+  const need = coverNeeded(m);
+  return m.junior + extra > need ? m.junior + extra - need : 0n;
 }
 
 export const marketKey = (m: MarketState) => (m.name.toLowerCase().includes("steady") ? "steady" : "bold");

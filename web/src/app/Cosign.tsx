@@ -3,7 +3,7 @@ import { addrUrl, gaugeAbi, vaultAbi, type MarketState } from "../chain";
 import { ArrowNE } from "../ui/Icon";
 import type { Ctx } from "./ctx";
 import { MarketStatus } from "./Markets";
-import { Amount, coverShortfall, fmt, minCoverBps, pct, short, Stack, toWei, up2 } from "./ui";
+import { Amount, coverFreeAfter, coverShortfall, down2, fmt, minCoverBps, pct, roomAfterCover, short, Stack, toWei, up2 } from "./ui";
 
 export function Cosign(ctx: Ctx) {
   const { account, connect, markets } = ctx;
@@ -49,6 +49,15 @@ export function Cosign(ctx: Ctx) {
   );
 }
 
+/** What posting `amount` of cover does to this market, from live vault state. Room and free cover round down. */
+function coverHint(m: MarketState, amount: bigint) {
+  if (amount === 0n) return `Each MUSD of cover allows up to ${m.maxLeverage} MUSD from lenders, once today's lenders are covered.`;
+  const gap = coverShortfall(m);
+  if (amount < gap) return `Still ${fmt(up2(gap - amount))} MUSD short: lender deposits stay paused.`;
+  const room = `Room for new lender deposits after this: ${fmt(down2(roomAfterCover(m, amount)))} MUSD (now ${fmt(down2(roomAfterCover(m)))}).`;
+  return m.senior > 0n ? `${room} While today's lenders stay, cover can shrink by at most ${fmt(down2(coverFreeAfter(m, amount)))} MUSD.` : room;
+}
+
 function CoverPanel({ m, user, send, approveIfNeeded, d, busy }: Ctx & { m: MarketState }) {
   const [dep, setDep] = useState("");
   const me = user?.perVault[m.vault];
@@ -57,7 +66,6 @@ function CoverPanel({ m, user, send, approveIfNeeded, d, busy }: Ctx & { m: Mark
   const reqLive = req && req.shares > 0n && req.round === m.round;
   const ready = reqLive && now >= req.readyAt;
   const amount = toWei(dep);
-  const opens = amount * m.maxLeverage;
   const overWallet = !!user && amount > user.musd;
   const gap = coverShortfall(m);
   return (
@@ -78,7 +86,7 @@ function CoverPanel({ m, user, send, approveIfNeeded, d, busy }: Ctx & { m: Mark
         <label htmlFor={`cov-${m.vault}`}>Post cover</label>
         <Amount id={`cov-${m.vault}`} value={dep} onChange={setDep} unit="MUSD" max={user?.musd} invalid={overWallet} />
         {overWallet ? <span className="field-hint is-error">You have {fmt(user!.musd)} MUSD in this wallet.</span>
-          : <span className="field-hint">{opens > 0n ? `Opens room for up to ${fmt(opens, 0)} MUSD of lender deposits.` : `Each MUSD of cover allows up to ${m.maxLeverage.toString()} MUSD from lenders.`}</span>}
+          : <span className="field-hint">{coverHint(m, amount)}</span>}
       </div>
       <button className="btn btn-dark btn-block" disabled={busy || amount === 0n || overWallet}
         onClick={async () => {
