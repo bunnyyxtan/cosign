@@ -1,15 +1,18 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { Address, Hex } from "viem";
 import {
   addrUrl, authorizedAccount, client, connectWallet, disconnectWallet, ensureChain, erc20Abi, loadDeployment, loadLosses, loadMarkets,
-  loadUser, mezoTestnet, setDisconnected, txUrl, walletChainId, walletClient, wasDisconnected,
+  loadUser, mezoTestnet, selectProvider, setDisconnected, txUrl, walletChainId, walletClient, wasDisconnected,
+  type Eip1193,
   type DemoRun, type Deployment, type GaugeState, type LossEvent, type MarketState, type UserState,
 } from "./chain";
 import type { Ctx } from "./app/ctx";
+import { ConnectModal } from "./app/Connect";
 import { Cosign, Rewards } from "./app/Cosign";
 import { Evidence } from "./app/Evidence";
 import { MarketDetail, Markets } from "./app/Markets";
 import { Positions } from "./app/Positions";
+import { onWallets, savedWallet, saveWallet, wallets, type Wallet } from "./wallets";
 import { fmt, short, WAD } from "./app/ui";
 import { ArrowNE, Check, Close, Wordmark } from "./ui/Icon";
 
@@ -120,27 +123,61 @@ export default function App() {
     if (d) loadLosses(d).then((l) => { setLosses(l); setLossesFailed(false); }).catch(() => setLossesFailed(true));
   }, [d]);
 
+  // The provider this session runs through. Its listeners attach once and come off when it changes.
+  const [eth, setEth] = useState<Eip1193 | undefined>(undefined);
+  const [walletId, setWalletId] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
+  const detected = useSyncExternalStore(onWallets, wallets);
+  const current = detected.find((w) => w.id === walletId);
+
+  const use = (p: Eip1193, id: string | null, a: Address) => {
+    selectProvider(p);
+    setEth(p);
+    setWalletId(id);
+    setUser(null);
+    setAccount(a);
+  };
+
   useEffect(() => {
     // Dev-only: ?devconnect connects the local test wallet on load (used for headless screenshots).
-    if (import.meta.env.DEV && new URLSearchParams(window.location.search).has("devconnect")) connectWallet().then(setAccount).catch(() => {});
+    if (import.meta.env.DEV && new URLSearchParams(window.location.search).has("devconnect") && window.ethereum) {
+      const p = window.ethereum;
+      connectWallet().then((a) => use(p, null, a)).catch(() => {});
+    }
   }, []);
 
-  // Some wallets inject their provider after the page script runs; pick it up when it arrives.
-  const [eth, setEth] = useState(() => window.ethereum);
+  // Restore a connection the wallet already authorised, without a prompt, unless the user chose Disconnect.
+  // It asks the wallet picked last time (waiting for it to announce itself). With nothing remembered it asks
+  // window.ethereum only when no wallet announces itself, since with several wallets that would be a guess.
+  // Nothing is shown as connected until the wallet answers.
   useEffect(() => {
-    if (eth) return;
-    const found = () => { if (window.ethereum) setEth(window.ethereum); };
-    window.addEventListener("ethereum#initialized", found, { once: true });
-    const t = setTimeout(found, 3000);
-    return () => { window.removeEventListener("ethereum#initialized", found); clearTimeout(t); };
-  }, [eth]);
+    if (wasDisconnected()) return;
+    let done = false;
+    let live = true;
+    const attempt = () => {
+      if (done) return;
+      const saved = savedWallet();
+      const w = saved ? wallets().find((x) => x.id === saved) : undefined;
+      const p = w?.provider ?? (!saved && wallets().every((x) => x.legacy) ? window.ethereum : undefined);
+      if (!p) return;
+      done = true;
+      setRestoring(true);
+      authorizedAccount(p)
+        .then((a) => { if (live && a && !wasDisconnected()) use(p, w?.id ?? null, a); })
+        .catch(() => {})
+        .finally(() => { if (live) setRestoring(false); });
+    };
+    attempt();
+    const off = onWallets(attempt);
+    const t = setTimeout(off, 4000);
+    return () => { live = false; off(); clearTimeout(t); };
+  }, []);
 
   useEffect(() => {
     if (!eth) return;
     let live = true;
     walletChainId().then((id) => { if (live) setChainId(id); }).catch(() => {});
-    // Restore a connection the wallet already authorised, without a prompt, unless the user chose Disconnect.
-    if (!wasDisconnected()) authorizedAccount().then((a) => { if (live && a && !wasDisconnected()) setAccount(a); }).catch(() => {});
     const onAccounts = (a: unknown) => {
       setUser(null); // never show the previous account's positions
       setAccount(wasDisconnected() ? null : (((a as Address[])[0] ?? null) as Address | null));
@@ -155,15 +192,13 @@ export default function App() {
     };
   }, [eth]);
 
-  const connect = async () => {
-    try {
-      const a = await connectWallet();
-      setDisconnected(false);
-      setAccount(a);
-      setChainId(await walletChainId());
-    } catch (e) {
-      setToast({ kind: "error", label: "Connect wallet", text: explain(e) });
-    }
+  const connect = () => setWalletOpen(true);
+  const closeWallet = useCallback(() => setWalletOpen(false), []);
+  /** The dialog calls this only after the wallet itself has authorised the account. */
+  const onConnected = (w: Wallet, a: Address) => {
+    saveWallet(w.id);
+    setDisconnected(false);
+    use(w.provider, w.id, a);
   };
 
   const disconnect = async () => {
@@ -171,6 +206,7 @@ export default function App() {
     await disconnectWallet();
     setAccount(null);
     setUser(null);
+    setEth(undefined);
   };
 
   const switchNetwork = async () => {
@@ -279,11 +315,15 @@ export default function App() {
             <span className="chip chip-plain topbar-net">Testnet prototype</span>
             {account ? (
               <div className="acct">
-                <a className="acct-addr num" href={addrUrl(account)} target="_blank" rel="noreferrer"><i />{short(account)}</a>
+                <button className="acct-addr num" onClick={connect} aria-haspopup="dialog" aria-label={`Wallet ${short(account)}: details`}>
+                  {current?.icon ? <img src={current.icon} width={18} height={18} alt="" /> : <i />}{short(account)}
+                </button>
                 <button className="btn btn-ghost btn-sm" onClick={disconnect}>Disconnect</button>
               </div>
+            ) : restoring ? (
+              <button className="btn btn-ghost btn-sm" disabled aria-busy="true"><span className="spin" />Reconnecting</button>
             ) : (
-              <button className="btn btn-dark btn-sm" onClick={connect}>Connect wallet</button>
+              <button className="btn btn-dark btn-sm" onClick={connect} aria-haspopup="dialog">Connect wallet</button>
             )}
           </div>
         </header>
@@ -324,6 +364,8 @@ export default function App() {
       </div>
 
       {toast && <TxTray toast={toast} onClose={() => setToast(null)} />}
+      <ConnectModal open={walletOpen} onClose={closeWallet} account={account} walletId={walletId} chainId={chainId}
+        onConnected={onConnected} onChain={setChainId} onDisconnect={disconnect} />
     </div>
   );
 }

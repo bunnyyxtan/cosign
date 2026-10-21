@@ -362,27 +362,43 @@ export async function loadLosses(d: Deployment): Promise<LossEvent[]> {
 
 // ----------------------------------------------------------------- wallet
 
+export type Eip1193 = {
+  request: (a: { method: string; params?: unknown[] }) => Promise<unknown>;
+  on?: (e: string, f: (...a: unknown[]) => void) => void;
+  removeListener?: (e: string, f: (...a: unknown[]) => void) => void;
+};
+
 declare global {
   interface Window {
-    ethereum?: {
-      request: (a: { method: string; params?: unknown[] }) => Promise<unknown>;
-      on?: (e: string, f: (...a: unknown[]) => void) => void;
-      removeListener?: (e: string, f: (...a: unknown[]) => void) => void;
-    };
+    ethereum?: Eip1193;
   }
 }
 
+// Every wallet call goes through the provider the user picked, so with several wallets installed the one they
+// chose is the one that signs. Without a pick it falls back to the legacy injected provider.
+let selected: Eip1193 | undefined;
+export function selectProvider(p: Eip1193 | undefined) { selected = p; }
+const eth = () => selected ?? window.ethereum;
+
+/** Opens the wallet's own connection prompt. Only an explicit Connect action calls this. */
+export async function requestAccount(): Promise<Address> {
+  const p = eth();
+  if (!p) throw new Error("No browser wallet found. Install Rabby, OKX Wallet or another EVM wallet to continue.");
+  const [account] = (await p.request({ method: "eth_requestAccounts" })) as Address[];
+  if (!account) throw new Error("The wallet did not share an account.");
+  return account;
+}
+
 export async function connectWallet(): Promise<Address> {
-  if (!window.ethereum) throw new Error("No browser wallet found. Install Rabby, OKX Wallet or another EVM wallet to continue.");
-  const [account] = (await window.ethereum.request({ method: "eth_requestAccounts" })) as Address[];
+  const account = await requestAccount();
   await ensureChain();
   return account;
 }
 
 /** The account this site is already authorised for, if any. eth_accounts never opens a wallet prompt. */
-export async function authorizedAccount(): Promise<Address | null> {
-  if (!window.ethereum) return null;
-  const [account] = (await window.ethereum.request({ method: "eth_accounts" })) as Address[];
+export async function authorizedAccount(p = eth()): Promise<Address | null> {
+  if (!p) return null;
+  const [account] = (await p.request({ method: "eth_accounts" })) as Address[];
   return account ?? null;
 }
 
@@ -397,8 +413,9 @@ export function setDisconnected(on: boolean) {
 }
 
 export async function walletChainId(): Promise<number | null> {
-  if (!window.ethereum) return null;
-  return parseInt((await window.ethereum.request({ method: "eth_chainId" })) as string, 16);
+  const p = eth();
+  if (!p) return null;
+  return parseInt((await p.request({ method: "eth_chainId" })) as string, 16);
 }
 
 const MEZO_TESTNET_PARAMS = {
@@ -411,15 +428,15 @@ const MEZO_TESTNET_PARAMS = {
 
 /** Switch the wallet to Mezo testnet, adding it only if the wallet does not know the chain (EIP-3326 code 4902). */
 export async function ensureChain() {
-  const eth = window.ethereum!;
+  const p = eth()!;
   if ((await walletChainId()) === mezoTestnet.id) return;
   try {
-    await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: MEZO_TESTNET_PARAMS.chainId }] });
+    await p.request({ method: "wallet_switchEthereumChain", params: [{ chainId: MEZO_TESTNET_PARAMS.chainId }] });
   } catch (e) {
     const code = (e as { code?: number; data?: { originalError?: { code?: number } } }).code;
     const inner = (e as { data?: { originalError?: { code?: number } } }).data?.originalError?.code;
     if (code === 4902 || inner === 4902) {
-      await eth.request({ method: "wallet_addEthereumChain", params: [MEZO_TESTNET_PARAMS] });
+      await p.request({ method: "wallet_addEthereumChain", params: [MEZO_TESTNET_PARAMS] });
     } else if (code === 4001) {
       throw new Error("You declined switching to Mezo testnet. Cosign only works on Mezo testnet.");
     } else {
@@ -432,12 +449,12 @@ export async function ensureChain() {
 /** Ask the wallet to forget this site (wallet_revokePermissions, where supported); always clears app state. */
 export async function disconnectWallet() {
   try {
-    await window.ethereum?.request({ method: "wallet_revokePermissions", params: [{ eth_accounts: {} }] });
+    await eth()?.request({ method: "wallet_revokePermissions", params: [{ eth_accounts: {} }] });
   } catch {
     /* not supported by every wallet; the app still forgets the account */
   }
 }
 
 export function walletClient(account: Address) {
-  return createWalletClient({ account, chain: mezoTestnet, transport: custom(window.ethereum!) });
+  return createWalletClient({ account, chain: mezoTestnet, transport: custom(eth()!) });
 }
