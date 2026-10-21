@@ -379,6 +379,23 @@ export async function connectWallet(): Promise<Address> {
   return account;
 }
 
+/** The account this site is already authorised for, if any. eth_accounts never opens a wallet prompt. */
+export async function authorizedAccount(): Promise<Address | null> {
+  if (!window.ethereum) return null;
+  const [account] = (await window.ethereum.request({ method: "eth_accounts" })) as Address[];
+  return account ?? null;
+}
+
+// Set by an explicit Disconnect so a reload does not restore the wallet; cleared by an explicit Connect.
+// Only this flag is stored, never an address: a restored connection always comes from the wallet itself.
+const DISCONNECTED = "cosign:disconnected";
+export function wasDisconnected() {
+  try { return localStorage.getItem(DISCONNECTED) === "1"; } catch { return false; }
+}
+export function setDisconnected(on: boolean) {
+  try { if (on) localStorage.setItem(DISCONNECTED, "1"); else localStorage.removeItem(DISCONNECTED); } catch { /* storage blocked: Disconnect lasts for this page only */ }
+}
+
 export async function walletChainId(): Promise<number | null> {
   if (!window.ethereum) return null;
   return parseInt((await window.ethereum.request({ method: "eth_chainId" })) as string, 16);

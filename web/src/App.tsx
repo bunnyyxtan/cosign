@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Address, Hex } from "viem";
 import {
-  addrUrl, client, connectWallet, disconnectWallet, ensureChain, erc20Abi, loadDeployment, loadLosses, loadMarkets,
-  loadUser, mezoTestnet, txUrl, walletChainId, walletClient,
+  addrUrl, authorizedAccount, client, connectWallet, disconnectWallet, ensureChain, erc20Abi, loadDeployment, loadLosses, loadMarkets,
+  loadUser, mezoTestnet, setDisconnected, txUrl, walletChainId, walletClient, wasDisconnected,
   type DemoRun, type Deployment, type GaugeState, type LossEvent, type MarketState, type UserState,
 } from "./chain";
 import type { Ctx } from "./app/ctx";
@@ -125,26 +125,41 @@ export default function App() {
     if (import.meta.env.DEV && new URLSearchParams(window.location.search).has("devconnect")) connectWallet().then(setAccount).catch(() => {});
   }, []);
 
+  // Some wallets inject their provider after the page script runs; pick it up when it arrives.
+  const [eth, setEth] = useState(() => window.ethereum);
   useEffect(() => {
-    const eth = window.ethereum;
+    if (eth) return;
+    const found = () => { if (window.ethereum) setEth(window.ethereum); };
+    window.addEventListener("ethereum#initialized", found, { once: true });
+    const t = setTimeout(found, 3000);
+    return () => { window.removeEventListener("ethereum#initialized", found); clearTimeout(t); };
+  }, [eth]);
+
+  useEffect(() => {
     if (!eth) return;
-    walletChainId().then(setChainId).catch(() => {});
+    let live = true;
+    walletChainId().then((id) => { if (live) setChainId(id); }).catch(() => {});
+    // Restore a connection the wallet already authorised, without a prompt, unless the user chose Disconnect.
+    if (!wasDisconnected()) authorizedAccount().then((a) => { if (live && a && !wasDisconnected()) setAccount(a); }).catch(() => {});
     const onAccounts = (a: unknown) => {
       setUser(null); // never show the previous account's positions
-      setAccount(((a as Address[])[0] ?? null) as Address | null);
+      setAccount(wasDisconnected() ? null : (((a as Address[])[0] ?? null) as Address | null));
     };
     const onChain = (id: unknown) => setChainId(parseInt(id as string, 16));
     eth.on?.("accountsChanged", onAccounts);
     eth.on?.("chainChanged", onChain);
     return () => {
+      live = false;
       eth.removeListener?.("accountsChanged", onAccounts);
       eth.removeListener?.("chainChanged", onChain);
     };
-  }, []);
+  }, [eth]);
 
   const connect = async () => {
     try {
-      setAccount(await connectWallet());
+      const a = await connectWallet();
+      setDisconnected(false);
+      setAccount(a);
       setChainId(await walletChainId());
     } catch (e) {
       setToast({ kind: "error", label: "Connect wallet", text: explain(e) });
@@ -152,6 +167,7 @@ export default function App() {
   };
 
   const disconnect = async () => {
+    setDisconnected(true);
     await disconnectWallet();
     setAccount(null);
     setUser(null);

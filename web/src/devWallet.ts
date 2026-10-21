@@ -12,12 +12,15 @@ export function installDevWallet() {
   if (!import.meta.env.DEV || !key || window.ethereum) return;
   const account = privateKeyToAccount(key);
   const wallet = createWalletClient({ account, chain: mezoTestnet, transport: http(import.meta.env.VITE_RPC || undefined) });
+  let authorized = false;
   window.ethereum = {
     request: async ({ method, params }) => {
       switch (method) {
         case "eth_requestAccounts":
-        case "eth_accounts":
+          authorized = true;
           return [account.address];
+        case "eth_accounts": // like a real wallet: authorised only after a connect request
+          return authorized ? [account.address] : [];
         case "eth_chainId":
           return "0x7b7b";
         case "wallet_switchEthereumChain":
