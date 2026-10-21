@@ -34,7 +34,7 @@ For each row, write PASS, FAIL or SKIP, the date, and one line on what you saw. 
 
 | # | Steps | Expected | Result |
 |---|---|---|---|
-| A1 | Open the app in a browser **without** a wallet extension. Click Connect wallet. | A clear message that no browser wallet was found. Explore demo still works. | NOT RUN |
+| A1 | Open the app in a browser **without** a wallet extension. Click Connect wallet. | A clear message that no browser wallet was found. The website replay and the app's Recorded evidence page still work. | NOT RUN |
 | A2 | With the wallet installed, click Connect wallet. | Wallet asks for permission, then the header shows your short address and Disconnect. | NOT RUN |
 | A3 | Click Disconnect. | Header returns to Connect wallet. No positions shown. Reloading does not reconnect silently. | NOT RUN |
 | A4 | Remove Mezo testnet from the wallet, then Connect. | Wallet offers to add the network (chain 31611, RPC `rpc.test.mezo.org`, symbol BTC). Approve. | NOT RUN |

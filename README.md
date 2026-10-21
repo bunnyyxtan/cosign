@@ -7,7 +7,7 @@
   Unaudited prototype · Mezo testnet only · <a href="#security-and-limitations">Read the limits first</a>
 </p>
 
-<p align="center"><img src="docs/screenshots/readme-explore.png" alt="The wallet-free replay of the recorded 300.5 MUSD loss: cover shrinks from 400 to 99.5 MUSD while lenders' booked principal stays at 1,000" width="860"></p>
+<p align="center"><img src="docs/screenshots/readme-explore.png" alt="The recorded loss replay on the Cosign website: cover falls from 400 to 99.5 MUSD while lenders' booked principal stays at 1,000" width="860"></p>
 
 ## Overview
 
@@ -46,15 +46,17 @@ External: Mezo MUSD, the MEZO precompile, and the Mezo veBTC contract.
 
 ## Product preview
 
-The first page of the app is a wallet-free **Explore demo**: a plain-language explanation, a comparison of the two markets, and a step-by-step replay of the recorded loss. It uses only the transactions recorded in `contracts/deployments/demo-run.json`; each step links to the real transaction in the Mezo explorer. Nothing on that page moves funds. Using your own wallet is a separate flow under **Markets** and **Co-sign**.
+The web front end has two parts. The **website** (`/`) explains the mechanism and replays the recorded loss step by step, wallet-free, from the transactions in `contracts/deployments/demo-run.json`; each step links to the real transaction in the Mezo explorer. The **app** (`/app/`) reads the deployed contracts directly: market overview, each market's capital stack, lending and borrowing, co-signing and veBTC votes, rewards, wallet positions, and the recorded evidence. Nothing on the website moves funds.
 
-<p align="center"><img src="docs/screenshots/readme-market.png" alt="The Bold MEZO market in the Cosign app: cover in front of lenders, with the guarantee panel" width="860"></p>
+<p align="center"><img src="docs/screenshots/readme-market.png" alt="The Bold MEZO market in the Cosign app: the live capital stack, cover in front of lenders, and the cover needed to reopen deposits" width="860"></p>
 
-The market pages read the deployed contracts directly. The bar shows capital in the order it is lost: cover first, then lenders.
+The capital stack shows money in the order it is lost: cover first, then lenders. The dashed mark is the minimum cover; below it, new deposits pause, and the app states how much cover reopens them.
 
 <p align="center"><img src="docs/screenshots/readme-losses.png" alt="Losses on this market: two liquidation losses, both paid entirely by cover, each linked to its block" width="860"></p>
 
-More screenshots are in [`docs/screenshots`](docs/screenshots) (light and dark, desktop and mobile).
+Design tokens, type and motion rules are in [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md); how the provided artwork was reviewed and placed is in [`docs/ASSET_REVIEW.md`](docs/ASSET_REVIEW.md).
+
+More screenshots are in [`docs/screenshots`](docs/screenshots).
 
 ## Onchain proof
 
