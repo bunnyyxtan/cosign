@@ -4,7 +4,7 @@ import { ArrowNE, Mark, Plus, Wordmark } from "../ui/Icon";
 import { Replay } from "./Replay";
 import { CHECKS, EVIDENCE, EXPLORER, REPO, REWARDS, STAGES, tx } from "./recorded";
 
-const APP = "./app/";
+const APP = "/app/markets";
 const NAV = [
   ["#idea", "The idea"],
   ["#roles", "Roles"],
@@ -179,15 +179,15 @@ function Roles() {
           <h2 id="roles-title" className="t-display">Same market.<br />Different stakes.</h2>
           <p className="t-lede">Three ways to take part in one transparent credit market.</p>
         </div>
-        <a className="link" href={`${APP}#/markets`}>View the markets <ArrowNE size={14} /></a>
+        <a className="link" href={APP}>View the markets <ArrowNE size={14} /></a>
       </div>
       <div className="roles-grid">
         <RoleCard i={0} cls="r-lend" slot="lend" n="01" k="Lenders" title={<>Earn behind<br />the cover.</>}
           body="Deposit MUSD into the senior tranche. Cover sits in front of recognised losses, up to the amount posted."
-          href={`${APP}#/markets`} cta="Explore lending" />
+          href={APP} cta="Explore lending" />
         <RoleCard i={1} cls="r-cosign" slot="cosign" n="02" k="Co-signers" title={<>Back what<br />you believe in.</>}
           body="Post first-loss cover, direct MEZO rewards with veBTC votes, and earn a premium on lenders' interest."
-          href={`${APP}#/cosign`} cta="Explore co-signing" />
+          href="/app/co-sign" cta="Explore co-signing" />
         <article className="role role-borrow card" data-reveal style={css({ "--i": 2 })}>
           <div className="role-copy">
             <span className="eyebrow">03 / Borrowers</span>
@@ -198,7 +198,7 @@ function Roles() {
             <div><dt>Bold MEZO</dt><dd className="num">77%</dd><span>max loan-to-value</span></div>
             <div><dt>Steady MEZO</dt><dd className="num">62.5%</dd><span>max loan-to-value</span></div>
           </dl>
-          <a className="circle role-go" href={`${APP}#/markets`} aria-label="Explore borrowing"><ArrowNE /></a>
+          <a className="circle role-go" href={APP} aria-label="Explore borrowing"><ArrowNE /></a>
         </article>
       </div>
     </section>
@@ -248,11 +248,11 @@ function Markets() {
         <span className="eyebrow">Markets<span className="idx">/ 04</span></span>
         <h2 id="markets-title" className="t-display">Choose your<br />risk profile.</h2>
         <p className="t-lede">Two configurations of the same design. Bold lets lenders stack higher on each unit of cover; Steady asks for more cover and lends less against collateral.</p>
-        <a className="btn btn-light btn-lg" href={`${APP}#/markets`}>Compare live markets <ArrowNE /></a>
+        <a className="btn btn-light btn-lg" href={APP}>Compare live markets <ArrowNE /></a>
       </div>
       <div className="market-list">
         {MARKETS.map((m, i) => (
-          <a key={m.name} className="market card card-white" href={`${APP}#/markets`} data-reveal style={css({ "--i": i })}>
+          <a key={m.name} className="market card card-white" href={`/app/markets/${m.slot}`} data-reveal style={css({ "--i": i })}>
             <div className="market-art"><Art slot={m.slot} /></div>
             <div className="market-body">
               <h3 className="t-heading">{m.name}</h3>

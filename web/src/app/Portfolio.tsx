@@ -3,6 +3,7 @@ import { ArrowE, ArrowNE } from "../ui/Icon";
 import type { Ctx } from "./ctx";
 import { ConnectGate } from "./Markets";
 import { collateralValue, coverForShares, debtOf, fmt, fmtCoverShare, ltvBps, PageHead, pct, pctTrim, Row, short, WAD } from "./ui";
+import { href } from "./routes";
 
 /** Everything this wallet holds across the deployed markets, from the same reads the action panels use. */
 export function Portfolio({ user, account, connect, markets, price, activity }: Ctx) {
@@ -42,7 +43,7 @@ export function Portfolio({ user, account, connect, markets, price, activity }: 
           <div className="empty card card-white">
             <h2 className="panel-title">No positions yet</h2>
             <p>Lend MUSD behind cover, post cover as a co-signer, or borrow against MEZO.</p>
-            <div className="empty-actions"><a className="btn btn-dark" href="#/markets">Explore markets</a><a className="btn btn-ghost" href="#/cosign">Co-sign</a></div>
+            <div className="empty-actions"><a className="btn btn-dark" href={href.markets()}>Explore markets</a><a className="btn btn-ghost" href={href.cosign()}>Co-sign</a></div>
           </div>
         ) : (
           <section className="panel card card-white" aria-labelledby="pos-h">
@@ -56,7 +57,7 @@ export function Portfolio({ user, account, connect, markets, price, activity }: 
                     const lim = (m.lltv * 10_000n) / WAD;
                     return (
                       <tr key={m.vault}>
-                        <td><a href={`#/market/${m.vault}`}><b>{m.name}</b></a></td>
+                        <td><a href={href.market(m.slug)}><b>{m.name}</b></a></td>
                         <td className="r num">{p!.senior > 0n ? fmt(p!.senior) : "—"}</td>
                         <td className="r num">{p!.junior > 0n ? <><span className="is-cover">{fmt(p!.junior)}</span> <small>{fmtCoverShare(p!.juniorShares, m.totalJuniorShares)}</small></> : "—"}</td>
                         <td className="r num">{p!.collateral > 0n ? <>{fmt(p!.collateral, 4)} <small>MEZO</small></> : "—"}</td>
@@ -64,7 +65,7 @@ export function Portfolio({ user, account, connect, markets, price, activity }: 
                         <td className={`r num ${ltv !== null && debt > 0n && ltv * 10n >= lim * 9n ? "is-loss" : ""}`}>{debt > 0n && ltv !== null ? <>{pct(ltv)} <small>/ {pctTrim(lim)}</small></> : "—"}</td>
                         <td className="r num">{p!.rewards > 0n ? <>{fmt(p!.rewards, 4)} <small>MEZO</small></> : "—"}</td>
                         <td>{live ? (ready ? <span className="chip chip-live">Ready</span> : <span className="chip chip-pending">Until {new Date(Number(p!.request.readyAt) * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>) : <span className="t-caption">None</span>}</td>
-                        <td className="r"><a className="btn btn-light btn-sm" href={`#/market/${m.vault}`}>Manage</a></td>
+                        <td className="r"><a className="btn btn-light btn-sm" href={href.market(m.slug)}>Manage</a></td>
                       </tr>
                     );
                   })}
@@ -76,7 +77,7 @@ export function Portfolio({ user, account, connect, markets, price, activity }: 
                 const ltv = ltvBps(debt, value);
                 return (
                   <div key={m.vault} className="pf-card">
-                    <div className="panel-head"><h3 className="panel-title"><a href={`#/market/${m.vault}`}>{m.name}</a></h3><a className="link" href={`#/market/${m.vault}`}>Manage <ArrowE size={14} /></a></div>
+                    <div className="panel-head"><h3 className="panel-title"><a href={href.market(m.slug)}>{m.name}</a></h3><a className="link" href={href.market(m.slug)}>Manage <ArrowE size={14} /></a></div>
                     <dl className="rows">
                       {p!.senior > 0n && <Row k="Lending">{fmt(p!.senior)} MUSD</Row>}
                       {p!.junior > 0n && <Row k="Cover" tone="cover">{fmt(p!.junior)} MUSD <small>· {fmtCoverShare(p!.juniorShares, m.totalJuniorShares)}</small></Row>}
@@ -90,7 +91,7 @@ export function Portfolio({ user, account, connect, markets, price, activity }: 
                 );
               })}
             </div>
-            {held.some((r) => r.p!.rewards > 0n) && <a className="btn btn-dark btn-sm pf-claim" href="#/rewards">Claim rewards</a>}
+            {held.some((r) => r.p!.rewards > 0n) && <a className="btn btn-dark btn-sm pf-claim" href={href.rewards()}>Claim rewards</a>}
           </section>
         )}
 

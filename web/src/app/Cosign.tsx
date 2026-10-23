@@ -4,6 +4,7 @@ import { vaultAbi, type MarketState } from "../chain";
 import { ArrowE } from "../ui/Icon";
 import type { Ctx } from "./ctx";
 import { ConnectGate, MarketStatus } from "./Markets";
+import { href, keepUrl } from "./routes";
 import {
   allowanceOf, Amount, coverForShares, coverFreeAfter, coverShortfall, down2, fmt, fmtCoverShare, minCoverBps, PageHead, pct, roomAfterCover,
   Row, sharesForCover, Stack, toWei, TwoStep, up2,
@@ -22,7 +23,7 @@ export function Cosign(ctx: Ctx & { vault?: Address }) {
         {markets.map((x) => {
           const mine = user?.perVault[x.vault]?.junior ?? 0n;
           return (
-            <button key={x.vault} role="radio" aria-checked={x.vault === m.vault} className="pick card" onClick={() => setSel(x.vault)}>
+            <button key={x.vault} role="radio" aria-checked={x.vault === m.vault} className="pick card" onClick={() => { setSel(x.vault); keepUrl(href.cosign(x.slug)); }}>
               <span className="pick-top"><b>{x.name}</b><MarketStatus m={x} /></span>
               <span className="pick-figs">
                 <span><small>Your cover</small><b className="num">{user ? `${fmt(mine)}` : "—"}</b></span>
@@ -37,7 +38,7 @@ export function Cosign(ctx: Ctx & { vault?: Address }) {
       <div className="split" key={m.vault}>
         <div className="split-main">
           <CoverOverview {...ctx} m={m} />
-          <a className="side-link card" href="#/rewards"><span><b>Direct MEZO rewards with veBTC</b><small>Votes count only up to the cover you post</small></span><ArrowE /></a>
+          <a className="side-link card" href={href.rewards()}><span><b>Direct MEZO rewards with veBTC</b><small>Votes count only up to the cover you post</small></span><ArrowE /></a>
         </div>
         <aside className="split-side" aria-label="Manage cover">
           <CoverActions {...ctx} m={m} />
@@ -73,7 +74,7 @@ function CoverOverview(ctx: Ctx & { m: MarketState }) {
   return (
     <section className="panel card card-white" aria-labelledby="cv-h">
       <div className="panel-head">
-        <h2 id="cv-h" className="panel-title"><a href={`#/market/${m.vault}`}>{m.name}</a> cover</h2>
+        <h2 id="cv-h" className="panel-title"><a href={href.market(m.slug)}>{m.name}</a> cover</h2>
         <span className="t-caption">Lenders up to {m.maxLeverage.toString()}× cover</span>
       </div>
       <Stack m={m} />

@@ -19,6 +19,7 @@ import { MarketDetail, Markets } from "./app/Markets";
 import { Portfolio } from "./app/Portfolio";
 import { Sheet, useLeaving } from "./app/Modal";
 import { onWallets, savedWallet, saveWallet, wallets, type Wallet } from "./wallets";
+import { href, legacyPath, parsePath, pathOf, slugTable, type Route } from "./app/routes";
 import { fmt, short, WAD } from "./app/ui";
 import { Activity, ArrowNE, Check, Close, Info, NavCosign, NavMarkets, NavPortfolio, NavRewards, Wordmark } from "./ui/Icon";
 
@@ -49,29 +50,13 @@ const tag = (a: string) => keccak256(toHex(a.toLowerCase()));
 const readSaved = () => { try { return parseSaved(localStorage.getItem(SAVE_KEY)); } catch { return []; } };
 const writeSaved = (v: unknown[]) => { try { if (v.length) localStorage.setItem(SAVE_KEY, JSON.stringify(v)); else localStorage.removeItem(SAVE_KEY); } catch { /* storage blocked: recovery lasts for this page only */ } };
 
-export type Route =
-  | { page: "markets" }
-  | { page: "market"; vault: Address; tab: "lend" | "borrow" }
-  | { page: "cosign"; vault?: Address }
-  | { page: "rewards" }
-  | { page: "portfolio" }
-  | { page: "evidence" };
-
-/** Hash routes. Old links keep working: #/positions opens Portfolio. */
-function parseRoute(): Route {
-  const [p, a, b] = window.location.hash.replace(/^#\/?/, "").split("/");
-  if (p === "market" && a) return { page: "market", vault: a as Address, tab: b === "borrow" ? "borrow" : "lend" };
-  if (p === "cosign") return { page: "cosign", vault: (a || undefined) as Address | undefined };
-  if (p === "positions" || p === "portfolio") return { page: "portfolio" };
-  if (p === "rewards" || p === "evidence") return { page: p };
-  return { page: "markets" };
-}
+const currentRoute = () => parsePath(window.location.pathname);
 
 const NAV = [
-  { page: "markets", href: "#/markets", label: "Markets", icon: NavMarkets },
-  { page: "cosign", href: "#/cosign", label: "Co-sign", icon: NavCosign },
-  { page: "rewards", href: "#/rewards", label: "Rewards", icon: NavRewards },
-  { page: "portfolio", href: "#/portfolio", label: "Portfolio", icon: NavPortfolio },
+  { page: "markets", href: href.markets(), label: "Markets", icon: NavMarkets },
+  { page: "cosign", href: href.cosign(), label: "Co-sign", icon: NavCosign },
+  { page: "rewards", href: href.rewards(), label: "Rewards", icon: NavRewards },
+  { page: "portfolio", href: href.portfolio(), label: "Portfolio", icon: NavPortfolio },
 ] as const;
 
 function useOnline() {
@@ -86,7 +71,7 @@ function useOnline() {
 }
 
 export default function App() {
-  const [route, setRoute] = useState<Route>(parseRoute);
+  const [route, setRoute] = useState<Route>(currentRoute);
   const [d, setD] = useState<Deployment | null | undefined>(undefined);
   const [demo, setDemo] = useState<DemoRun | null>(null);
   const [markets, setMarkets] = useState<MarketState[]>([]);
@@ -106,16 +91,43 @@ export default function App() {
   const [activity, setActivity] = useState<TxItem[]>([]);
   const online = useOnline();
 
+  // History API navigation. Links stay real <a href> elements (new tab, copy link, middle-click all work); a plain
+  // left click on an in-app link is handled here without a page load. Back and Forward come through popstate.
   useEffect(() => {
-    const f = () => { setRoute(parseRoute()); setMenu(false); window.scrollTo({ top: 0 }); };
-    window.addEventListener("hashchange", f);
-    return () => window.removeEventListener("hashchange", f);
+    const onPop = () => { setRoute(currentRoute()); setMenu(false); };
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as Element | null)?.closest?.("a");
+      if (!a || (a.target && a.target !== "_self") || a.hasAttribute("download")) return;
+      const u = new URL(a.href, window.location.href);
+      if (u.origin !== window.location.origin || !(u.pathname === "/app" || u.pathname.startsWith("/app/"))) return;
+      if (u.pathname === window.location.pathname && u.hash) return; // an anchor on this page, such as Skip to content
+      e.preventDefault();
+      if (u.pathname + u.search !== window.location.pathname + window.location.search) window.history.pushState(null, "", u.pathname + u.search);
+      setRoute(parsePath(u.pathname));
+      setMenu(false);
+      window.scrollTo({ top: 0 });
+    };
+    window.addEventListener("popstate", onPop);
+    document.addEventListener("click", onClick);
+    return () => { window.removeEventListener("popstate", onPop); document.removeEventListener("click", onClick); };
   }, []);
+
+  // Show the canonical form of the current address (/app becomes /app/markets; trailing slash and letter case).
+  useEffect(() => {
+    if (route.page === "notfound" || window.location.hash.startsWith("#/")) return;
+    const p = pathOf(route);
+    if (window.location.pathname !== p) window.history.replaceState(null, "", p + window.location.search);
+  }, [route]);
 
   useEffect(() => {
     loadDeployment().then(({ d, demo }) => {
       setD(d);
       setDemo(demo);
+      // Old shared links (#/market/0x..., #/cosign/0x..., #/positions, ...) open the same thing at its new address.
+      // The vault is matched only against this deployment's own addresses.
+      const old = d && legacyPath(window.location.hash, slugTable({ bold: d.vaultBold, steady: d.vaultSteady }));
+      if (old) { window.history.replaceState(null, "", old); setRoute(parsePath(old)); }
     });
   }, []);
 
@@ -385,16 +397,21 @@ export default function App() {
   const ctx: Ctx = { d: d!, markets, gauge, price, user, account, send, approveIfNeeded, connect, about: () => setAboutOpen(true), losses, lossesFailed, demo, busy: busy || blocked.length > 0, activity: mineAll };
   const wrongChain = !!account && chainId !== null && chainId !== mezoTestnet.id;
   const section = route.page === "market" || route.page === "evidence" ? "markets" : route.page;
-  const marketName = route.page === "market" ? markets.find((m) => m.vault.toLowerCase() === route.vault.toLowerCase())?.name ?? "Market" : "";
-  const pageName = { markets: "Markets", market: marketName, cosign: "Co-sign", rewards: "Rewards", portfolio: "Portfolio", evidence: "Recorded evidence" }[route.page];
-  const nested = route.page === "market" || route.page === "evidence";
+  const routeSlug = route.page === "market" || route.page === "cosign" ? route.slug : undefined;
+  const routeMarket = routeSlug ? markets.find((m) => m.slug === routeSlug) : undefined;
+  // A valid slug whose vault isn't in this deployment is as unknown as a misspelt one.
+  const missing = route.page === "notfound" || (!!routeSlug && markets.length > 0 && !routeMarket);
+  const marketName = routeMarket?.name ?? "Market";
+  const pageName = missing ? "Not found" : { markets: "Markets", market: marketName, cosign: "Co-sign", rewards: "Rewards", portfolio: "Portfolio", evidence: "Recorded evidence", notfound: "Not found" }[route.page];
+  const nested = !missing && (route.page === "market" || route.page === "evidence");
+  useEffect(() => { document.title = route.page === "markets" ? "Cosign app" : `${pageName} · Cosign`; }, [pageName, route.page]);
 
   return (
     <div className={`app ${menu ? "menu-open" : ""}`}>
       <a className="skip" href="#app-main">Skip to content</a>
       <aside className="side" aria-label="Cosign app">
         <div className="side-top">
-          <Wordmark href="#/markets" label="Cosign: markets" />
+          <Wordmark href={href.markets()} label="Cosign: markets" />
           <button className="icon-btn side-close" onClick={() => setMenu(false)} aria-label="Close menu"><Close /></button>
         </div>
         <nav className="side-nav" aria-label="Main">
@@ -415,7 +432,7 @@ export default function App() {
           <div className="bar-in topbar-in">
             <button className="icon-btn menu-toggle" onClick={() => setMenu(true)} aria-label="Open menu"><span /><span /></button>
             {nested ? (
-              <nav className="crumb" aria-label="Breadcrumb"><a href="#/markets">Markets</a><span aria-hidden="true">/</span><span aria-current="page">{pageName}</span></nav>
+              <nav className="crumb" aria-label="Breadcrumb"><a href={href.markets()}>Markets</a><span aria-hidden="true">/</span><span aria-current="page">{pageName}</span></nav>
             ) : <span className="topbar-title">{pageName}</span>}
             <div className="topbar-right">
               <NetStatus online={online} loadError={!!loadError} live={!!updated} wrongChain={wrongChain} onSwitch={switchNetwork} onOpen={() => setAboutOpen(true)} />
@@ -471,11 +488,12 @@ export default function App() {
               <p>This build has no Cosign deployment for Mezo testnet.</p>
             </div>
           )}
-          {d && route.page === "evidence" && <Evidence {...ctx} />}
-          {d && route.page !== "evidence" && markets.length === 0 && !loadError && <Loading text="Reading markets from Mezo testnet…" />}
+          {d && missing && <NotFound what={route.page === "notfound" ? route.what : "market"} />}
+          {d && !missing && route.page === "evidence" && <Evidence {...ctx} />}
+          {d && !missing && route.page !== "evidence" && markets.length === 0 && !loadError && <Loading text="Reading markets from Mezo testnet…" />}
           {d && markets.length > 0 && route.page === "markets" && <Markets {...ctx} />}
-          {d && markets.length > 0 && route.page === "market" && <MarketDetail key={route.vault + route.tab} {...ctx} vault={route.vault} tab={route.tab} />}
-          {d && markets.length > 0 && route.page === "cosign" && <Cosign {...ctx} vault={route.vault} />}
+          {d && markets.length > 0 && route.page === "market" && routeMarket && <MarketDetail key={route.slug + route.tab} {...ctx} vault={routeMarket.vault} tab={route.tab} />}
+          {d && markets.length > 0 && route.page === "cosign" && !missing && <Cosign key={route.slug ?? "all"} {...ctx} vault={routeMarket?.vault} />}
           {d && markets.length > 0 && route.page === "rewards" && <Rewards {...ctx} />}
           {d && markets.length > 0 && route.page === "portfolio" && <Portfolio {...ctx} />}
         </main>
@@ -486,6 +504,20 @@ export default function App() {
       <ConnectModal open={walletOpen} onClose={closeWallet} account={account} walletId={walletId} chainId={chainId}
         onConnected={onConnected} onChain={setChainId} onDisconnect={disconnect} />
       <About open={aboutOpen} onClose={() => setAboutOpen(false)} online={online} loadError={loadError} updated={updated} price={price} />
+    </div>
+  );
+}
+
+/** An address under /app that isn't a page, or names a market this deployment doesn't have. */
+function NotFound({ what }: { what: "market" | "page" }) {
+  return (
+    <div className="empty card card-white" role="alert">
+      <h1 className="page-title">{what === "market" ? "Market not found" : "Page not found"}</h1>
+      <p>{what === "market" ? "This deployment has two markets, Bold MEZO and Steady MEZO. The link you followed doesn't match either." : "There's no page at this address in the Cosign app."}</p>
+      <div className="empty-actions">
+        <a className="btn btn-dark" href={href.markets()}>Go to Markets</a>
+        <a className="btn btn-ghost" href={href.portfolio()}>Portfolio</a>
+      </div>
     </div>
   );
 }
@@ -619,9 +651,9 @@ function About({ open, onClose, online, loadError, updated, price }: {
         <li><b>MEZO rewards are funded by participants</b> through the gauge. They aren't protocol emissions and aren't guaranteed.</li>
       </ul>
       <div className="wm-links">
-        <a className="link" href="#/evidence" onClick={onClose}>Recorded evidence</a>
+        <a className="link" href={href.evidence()} onClick={onClose}>Recorded evidence</a>
         <a className="link" href="https://github.com/bunnyyxtan/cosign/blob/main/docs/PRODUCT.md" target="_blank" rel="noreferrer">How Cosign works <ArrowNE size={12} /></a>
-        <a className="link" href="../">Website</a>
+        <a className="link" href="/">Website</a>
       </div>
     </Sheet>
   );

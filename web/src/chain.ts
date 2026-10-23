@@ -1,4 +1,5 @@
 import { createPublicClient, createWalletClient, custom, defineChain, http, parseAbi, type Address, type Hex } from "viem";
+import { slugTable, type Slug } from "./app/routes";
 
 export const mezoTestnet = defineChain({
   id: 31611,
@@ -55,7 +56,7 @@ export async function loadDeployment(): Promise<{ d: Deployment | null; demo: De
   const get = async (f: string) => {
     try {
       // Data files sit at the site root; the app is served from /app/.
-      const r = await fetch(`../${f}`, { cache: "no-store" });
+      const r = await fetch(`/${f}`, { cache: "no-store" });
       return r.ok ? await r.json() : null;
     } catch {
       return null;
@@ -160,6 +161,8 @@ export const veAbi = parseAbi([
 
 export type MarketState = {
   vault: Address;
+  /** The market's URL name, from the deployment's own vault table. */
+  slug: Slug;
   name: string;
   senior: bigint;
   junior: bigint;
@@ -230,12 +233,14 @@ export async function loadMarkets(d: Deployment, at?: bigint): Promise<{ markets
     .map(({ epoch: e, budget: bg }) => ({ epoch: e, budget: bg }))
     .reverse();
 
+  const slugOf = slugTable({ bold: d.vaultBold, steady: d.vaultSteady });
   const markets: MarketState[] = vaults.map((vault, i) => {
     const r = vr.slice(i * fields.length, (i + 1) * fields.length) as unknown[];
     const books = r[1] as readonly [bigint, bigint];
     const g = gr.slice(i * 3, i * 3 + 3) as bigint[];
     return {
       vault,
+      slug: slugOf(vault)!,
       name: r[0] as string,
       senior: books[0],
       junior: books[1],

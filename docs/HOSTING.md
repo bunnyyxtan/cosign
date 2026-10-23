@@ -7,7 +7,7 @@ The app is a static Vite build. It reads the Mezo testnet RPC from each visitor'
 | Item | State |
 |---|---|
 | Build | `cd web && npm ci && npm run build` writes `web/dist`. The build first copies `contracts/deployments/31611.json` and `demo-run.json` into the bundle and fails if a transaction hash shown on the website is missing from the recorded run. |
-| Pages | `/` (website) and `/app/` (application); the app uses hash routes (`#/markets`, `#/market/<vault>`, `#/cosign`, `#/rewards`, `#/positions`, `#/evidence`), so no rewrite rules are needed on any host. |
+| Pages | `/` (website) and the app under `/app/`: `/app/markets`, `/app/markets/bold` (`/borrow`), `/app/markets/steady` (`/borrow`), `/app/co-sign` (`/bold`, `/steady`), `/app/rewards`, `/app/portfolio`, `/app/evidence`. The app uses the History API; `vercel.json` (and `web/public/_redirects` for Cloudflare Pages or Netlify) rewrites `/app/*` to `app/index.html`, and real files are served first, so assets, JSON and the website are untouched. Old `#/…` links (`#/market/0x…`, `#/cosign/0x…`, `#/positions`, …) are converted to these paths on load; market names come from the deployment file, never from an address in the URL. |
 | Headers | `vercel.json` (Vercel) and `web/public/_headers` (Cloudflare Pages, Netlify): a strict Content-Security-Policy that allows only the site itself and `rpc.test.mezo.org` (fonts and images are self-hosted), no framing, no referrer, no camera, microphone or location. |
 | Secrets | None. The production bundle contains no private key, no `.env` value and no dev-wallet code. |
 | Contracts | Only the verified v2 testnet addresses in `31611.json`. |

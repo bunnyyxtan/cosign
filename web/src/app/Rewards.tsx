@@ -3,6 +3,7 @@ import { gaugeAbi, vaultAbi } from "../chain";
 import type { Ctx } from "./ctx";
 import { ConnectGate } from "./Markets";
 import { allowanceOf, Amount, fmt, PageHead, pct, toWei, TwoStep } from "./ui";
+import { href } from "./routes";
 
 function useNow(ms = 1000) {
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
@@ -52,7 +53,7 @@ export function Rewards(ctx: Ctx) {
                       const r = p?.rewards ?? 0n;
                       return (
                         <tr key={m.vault}>
-                          <td><a href={`#/market/${m.vault}`}>{m.name}</a></td>
+                          <td><a href={href.market(m.slug)}>{m.name}</a></td>
                           <td className="r num wide-only">{p ? `${fmt(p.junior)} · ${fmt(p.senior)}` : "…"}</td>
                           <td className="r num"><b>{user ? fmt(r, 4) : "…"}</b> <small>MEZO</small></td>
                           <td className="r"><button className="btn btn-dark btn-sm" disabled={busy || !user || r === 0n}
@@ -150,7 +151,7 @@ function VotePanel({ user, account, markets, send, d, gauge, busy }: Ctx) {
                 {tokens.map((t) => <option key={t.id.toString()} value={t.id.toString()}>#{t.id.toString()} · {fmt(t.power, 6)} voting power</option>)}
               </select>
             </div>
-            {eligible.length === 0 ? <p className="note">You can vote only for markets where you hold cover. <a href="#/cosign">Post cover</a> first.</p> : (
+            {eligible.length === 0 ? <p className="note">You can vote only for markets where you hold cover. <a href={href.cosign()}>Post cover</a> first.</p> : (
               <div className="sliders">
                 {eligible.map((m) => (
                   <div key={m.vault} className="slider">

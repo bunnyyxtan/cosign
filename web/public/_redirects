@@ -1,0 +1,2 @@
+# Cloudflare Pages / Netlify: the app's own pages load app/index.html; real files are served first.
+/app/*  /app/index.html  200

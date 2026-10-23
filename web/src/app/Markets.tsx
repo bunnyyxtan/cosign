@@ -4,6 +4,7 @@ import { addrUrl, client, morphoAbi, txUrl, vaultAbi, type LossEvent, type Marke
 import { ArrowE, ArrowNE } from "../ui/Icon";
 import { Art } from "../ui/Art";
 import type { Ctx } from "./ctx";
+import { href, keepUrl } from "./routes";
 import {
   allowanceOf, Amount, aprs, apr, collateralValue, coverShortfall, debtOf, Figure, fmt, ltvBps, marketKey, minCoverBps, PageHead, pct, pctTrim,
   Row, Stack, toWei, TwoStep, up2, WAD,
@@ -45,7 +46,7 @@ export function Markets({ markets, gauge, losses, lossesFailed, user }: Ctx) {
               <div className="mk-head">
                 <div className="mk-art"><Art slot={marketKey(m)} /></div>
                 <div className="mk-title">
-                  <h2><a href={`#/market/${m.vault}`}>{m.name}</a></h2>
+                  <h2><a href={href.market(m.slug)}>{m.name}</a></h2>
                   <p>Liquidation at {lltvText(m)} LTV · lenders up to {m.maxLeverage.toString()}× cover</p>
                 </div>
                 <MarketStatus m={m} />
@@ -75,9 +76,9 @@ export function Markets({ markets, gauge, losses, lossesFailed, user }: Ctx) {
               {loss && <p className="mk-loss">Last loss {fmt(loss.loss)} MUSD · cover paid {fmt(loss.byJunior)}, lenders {fmt(loss.bySenior)} · <a href={txUrl(loss.tx)} target="_blank" rel="noreferrer">tx</a></p>}
 
               <div className="mk-foot">
-                <a className="btn btn-dark btn-sm" href={`#/market/${m.vault}`}>Lend</a>
-                <a className="btn btn-light btn-sm" href={`#/market/${m.vault}/borrow`}>Borrow</a>
-                <a className="btn btn-ghost btn-sm" href={`#/cosign/${m.vault}`}>Co-sign</a>
+                <a className="btn btn-dark btn-sm" href={href.market(m.slug)}>Lend</a>
+                <a className="btn btn-light btn-sm" href={href.market(m.slug, "borrow")}>Borrow</a>
+                <a className="btn btn-ghost btn-sm" href={href.cosign(m.slug)}>Co-sign</a>
                 <span className="mk-weight" title="Share of this epoch's MEZO rewards, by cover-capped votes">
                   Reward weight {(share / 100).toFixed(1)}%
                 </span>
@@ -98,7 +99,7 @@ export function MarketDetail(ctx: Ctx & { vault: Address; tab: "lend" | "borrow"
   const mine = losses?.filter((l) => l.vault.toLowerCase() === vault.toLowerCase());
   const [replay, setReplay] = useState<LossEvent | null>(null);
   const [tab, setTab] = useState(ctx.tab);
-  if (!m) return <div className="empty card card-white"><h1 className="page-title">Unknown market</h1><p>That address is not a Cosign vault in this deployment.</p><a className="btn btn-dark" href="#/markets">Back to markets</a></div>;
+  if (!m) return <div className="empty card card-white"><h1 className="page-title">Unknown market</h1><p>That address is not a Cosign vault in this deployment.</p><a className="btn btn-dark" href={href.markets()}>Back to markets</a></div>;
   const a = aprs(m);
 
   return (
@@ -133,7 +134,7 @@ export function MarketDetail(ctx: Ctx & { vault: Address; tab: "lend" | "borrow"
           <section className="panel card card-white" aria-labelledby="loss-h">
             <div className="panel-head">
               <h2 id="loss-h" className="panel-title">Losses</h2>
-              <a className="link" href="#/evidence">Recorded evidence</a>
+              <a className="link" href={href.evidence()}>Recorded evidence</a>
             </div>
             {ctx.lossesFailed && !mine ? (
               <p className="empty-line is-loss" role="alert">Couldn't read loss history from Mezo testnet. Reload to try again.</p>
@@ -203,12 +204,12 @@ export function MarketDetail(ctx: Ctx & { vault: Address; tab: "lend" | "borrow"
         <aside className="split-side" aria-label="Lend or borrow">
           <div className="panel card card-white action-card">
             <div className="seg-tabs" role="tablist" aria-label="Action">
-              <button role="tab" aria-selected={tab === "lend"} onClick={() => setTab("lend")}>Lend</button>
-              <button role="tab" aria-selected={tab === "borrow"} onClick={() => setTab("borrow")}>Borrow</button>
+              <button role="tab" aria-selected={tab === "lend"} onClick={() => { setTab("lend"); keepUrl(href.market(m.slug)); }}>Lend</button>
+              <button role="tab" aria-selected={tab === "borrow"} onClick={() => { setTab("borrow"); keepUrl(href.market(m.slug, "borrow")); }}>Borrow</button>
             </div>
             {tab === "lend" ? <LendPanel {...ctx} m={m} /> : <BorrowPanel {...ctx} m={m} />}
           </div>
-          <a className="side-link card" href={`#/cosign/${m.vault}`}><span><b>Co-sign this market</b><small>Post first-loss cover, earn a premium</small></span><ArrowE /></a>
+          <a className="side-link card" href={href.cosign(m.slug)}><span><b>Co-sign this market</b><small>Post first-loss cover, earn a premium</small></span><ArrowE /></a>
         </aside>
       </div>
     </>
