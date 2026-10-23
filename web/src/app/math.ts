@@ -174,3 +174,23 @@ export function voteSplit(eligible: string[], weights: Record<string, number>) {
   const pct = Object.fromEntries(Object.entries(tenths).map(([v, t]) => [v, t / 10]));
   return { vaults: named, weights: named.map((v) => BigInt(Math.round(weights[v]))), pct };
 }
+
+/**
+ * Each market's effective reward share if this vote were cast now, by the gauge's own steps: the position's standing
+ * votes are removed (reset), each named market gets power x weight / sum (integer division), and a market's effective
+ * weight is the smaller of its votes and its cover cap. Shares are in basis points of the total effective weight.
+ */
+export function voteOutcome(
+  markets: { vault: string; votes: bigint; coverCap: bigint }[],
+  mine: Record<string, bigint>, power: bigint, split: { vaults: string[]; weights: bigint[] },
+) {
+  const sum = split.weights.reduce((a, b) => a + b, 0n);
+  const rows = markets.map((m) => {
+    const i = split.vaults.indexOf(m.vault);
+    const added = i >= 0 && sum > 0n ? (power * split.weights[i]) / sum : 0n;
+    const votes = m.votes - (mine[m.vault] ?? 0n) + added;
+    return { vault: m.vault, added, votes, weight: votes < m.coverCap ? votes : m.coverCap, capped: m.coverCap > 0n && votes >= m.coverCap };
+  });
+  const total = rows.reduce((a, r) => a + r.weight, 0n);
+  return Object.fromEntries(rows.map((r) => [r.vault, { ...r, bps: total > 0n ? Number((r.weight * 10_000n) / total) : 0 }]));
+}

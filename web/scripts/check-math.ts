@@ -1,6 +1,6 @@
 // node scripts/check-math.ts — asserts the cover-shortfall and rounding rules the app shows to users.
 import assert from "node:assert/strict";
-import { voteSplit, borrowLimit, collateralOut, collateralValue, coverExit, coverForShares, debtOf, ltvBps, marketStatus, coverFreeAfter, coverShareBps, coverShortfall, down2, fmt, fmtCoverShare, minCoverBps, pctTrim, roomAfterCover, sharesForCover, up2 } from "../src/app/math.ts";
+import { voteSplit, voteOutcome, borrowLimit, collateralOut, collateralValue, coverExit, coverForShares, debtOf, ltvBps, marketStatus, coverFreeAfter, coverShareBps, coverShortfall, down2, fmt, fmtCoverShare, minCoverBps, pctTrim, roomAfterCover, sharesForCover, up2 } from "../src/app/math.ts";
 
 const E = 10n ** 18n;
 // Bold MEZO as read on 21 Oct 2026: 1,000.0000532 MUSD senior behind 39.3999468 MUSD cover, 19x cap
@@ -123,5 +123,22 @@ assert.deepEqual(odd.pct, { [VB]: 66.7, [VS]: 33.3 }, "shown to a tenth, as the 
 const thirds = voteSplit([VB, VS, "0xc"], { [VB]: 1, [VS]: 1, "0xc": 1 });
 assert.equal(Math.round(Object.values(thirds.pct).reduce((a, b) => a + b, 0) * 10), 1000, "percentages always add up to 100.0");
 assert.deepEqual(voteSplit([VB, VS], { [VB]: 50, [VS]: 0 }).vaults, [VB], "a market at zero is left out of the vote");
+
+// Live gauge on 23 Oct 2026, epoch 473: position #402 (power 0.000174328703642340) still holds 0.000178170524628642 of
+// Bold's votes from an earlier epoch; Bold is far over its cover cap, Steady (5 MUSD cover) has no votes yet.
+const live = [{ vault: VB, votes: 924867283625064n, coverCap: 543999474335150n }, { vault: VS, votes: 0n, coverCap: 50000000000000n }];
+const mine402 = { [VB]: 178170524628642n }, PW = 174328703642340n;
+const half = voteOutcome(live, mine402, PW, voteSplit([VB, VS], { [VB]: 50, [VS]: 50 }));
+assert.equal(half[VS].added, PW / 2n, "the gauge gives each market power x weight / sum");
+assert.equal(half[VB].votes, 924867283625064n - 178170524628642n + PW / 2n, "the position's standing votes are reset first");
+assert.equal(half[VS].weight, 50000000000000n, "Steady's effective weight stops at its cover cap");
+assert.deepEqual([half[VB].bps, half[VS].bps], [9158, 841], "50/50 now: Bold 91.6%, Steady 8.4% (not the current 100/0)");
+assert.ok(half[VB].capped && half[VS].capped);
+const allBold = voteOutcome(live, mine402, PW, voteSplit([VB, VS], { [VB]: 100, [VS]: 0 }));
+assert.deepEqual([allBold[VB].bps, allBold[VS].bps], [10000, 0], "all to Bold: Steady stays at 0");
+const tiny = voteOutcome(live, mine402, PW, voteSplit([VB, VS], { [VB]: 99, [VS]: 1 }));
+assert.equal(tiny[VS].weight, PW / 100n, "below the cap, effective weight is the votes");
+assert.ok(!tiny[VS].capped);
+assert.equal(voteOutcome(live, mine402, PW, { vaults: [], weights: [] })[VB].votes, 924867283625064n - 178170524628642n, "nothing chosen: only the reset");
 
 console.log("math ok");

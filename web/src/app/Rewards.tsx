@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { gaugeAbi, vaultAbi } from "../chain";
 import type { Ctx } from "./ctx";
 import { ConnectGate } from "./Markets";
-import { allowanceOf, Amount, fmt, PageHead, pct, toWei, TwoStep, voteSplit } from "./ui";
+import { allowanceOf, Amount, fmt, PageHead, pct, toWei, TwoStep, voteOutcome, voteSplit } from "./ui";
 import { href } from "./routes";
 
 function useNow(ms = 1000) {
@@ -141,6 +141,15 @@ function VotePanel({ user, account, markets, send, d, gauge, busy }: Ctx) {
   const eligible = markets.filter((m) => (user?.perVault[m.vault]?.juniorShares ?? 0n) > 0n);
   const split = voteSplit(eligible.map((m) => m.vault), Object.fromEntries(eligible.map((m) => [m.vault, weightOf(m.vault)])));
   const sharePct = (m: (typeof markets)[number]) => `${Number(shareOf(m).toFixed(1))}%`;
+  // What the vote would do, not the gauge's standing weights: shown while the position can still vote this epoch.
+  const preview = !!token && !token.votedThisEpoch && split.vaults.length > 0;
+  const out = token ? voteOutcome(markets, token.votes, token.power, split) : {};
+  const bpsPct = (bps: number) => `${Number((bps / 100).toFixed(1))}%`;
+  const Share = ({ m }: { m: (typeof markets)[number] }) => preview ? (
+    <div><dt>Reward share after vote</dt><dd className="num">{bpsPct(out[m.vault].bps)}{out[m.vault].capped ? <small> · at cover cap</small> : null}</dd><dd className="alloc-now num">now {sharePct(m)}</dd></div>
+  ) : (
+    <div><dt>Effective reward share</dt><dd className="num">{sharePct(m)}{capped(m) ? <small> · at cover cap</small> : null}</dd></div>
+  );
   const byVault = (v: string) => eligible.find((m) => m.vault === v)!;
   return (
     <section className="panel card card-white" aria-labelledby="vote-h">
@@ -164,7 +173,7 @@ function VotePanel({ user, account, markets, send, d, gauge, busy }: Ctx) {
               : eligible.length === 1 ? (
                 <dl className="vote-one">
                   <div><dt>Allocation</dt><dd>100% to {eligible[0].name}</dd></div>
-                  <div><dt>Effective reward share</dt><dd className="num">{sharePct(eligible[0])}</dd></div>
+                  <Share m={eligible[0]} />
                   <p>{capped(eligible[0])
                     ? `${eligible[0].name.split(" ")[0]} is already at its cover cap, so more votes do not increase effective weight.`
                     : "Effective weight is the smaller of a market's votes and what its cover backs."}</p>
@@ -187,7 +196,7 @@ function VotePanel({ user, account, markets, send, d, gauge, busy }: Ctx) {
                         aria-valuetext={`Weight ${weightOf(m.vault)}, ${split.pct[m.vault] ?? 0}% of your vote`} />
                       <dl className="alloc-figs">
                         <div><dt>Your allocation</dt><dd className="num">{split.pct[m.vault] ?? 0}%</dd></div>
-                        <div><dt>Effective reward share</dt><dd className="num">{sharePct(m)}{capped(m) ? <small> · at cover cap</small> : null}</dd></div>
+                        <Share m={m} />
                       </dl>
                     </div>
                   ))}
