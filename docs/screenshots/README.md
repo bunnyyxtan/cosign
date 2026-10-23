@@ -11,7 +11,7 @@ Captured from the production build (`npm run build && npm run preview`) against 
 | `app-market-bold.jpg`, `app-market-bold-mobile.jpg` | Bold MEZO market |
 | `app-evidence.jpg` | Recorded evidence page |
 | `app-wallet-dialog.jpg` | Wallet dialog in a browser with no wallet installed |
-| `app-cosign-cover.jpg`, `app-rewards.jpg`, `app-positions.jpg` | Connected views |
+| `app-cosign-cover.jpg`, `app-rewards.jpg`, `app-portfolio.jpg` | Connected views |
 
 **Connected views are not wallet evidence.** They were captured with a read-only stand-in provider that reports the public address of the testnet account used in the real-wallet sessions. It cannot sign or send anything. Real-wallet results are in [../WALLET_ACCEPTANCE.md](../WALLET_ACCEPTANCE.md).
 

@@ -64,10 +64,10 @@ The website replays a real testnet liquidation step by step from recorded transa
 
 | | |
 |---|---|
-| <img src="docs/screenshots/app-cosign-cover.jpg" alt="Co-sign page: cover position and partial withdrawal"> | <img src="docs/screenshots/app-rewards.jpg" alt="Rewards page: epoch, fund and distribute, claim"> |
+| <img src="docs/screenshots/app-cosign-cover.jpg" alt="Co-sign page: your cover against market cover, with separate add and withdraw actions"> | <img src="docs/screenshots/app-rewards.jpg" alt="Rewards page: epoch, fund and distribute, claim"> |
 | <img src="docs/screenshots/app-markets.jpg" alt="Markets overview with two markets"> | <img src="docs/screenshots/app-evidence.jpg" alt="Recorded evidence page linking transactions"> |
 
-More captures (mobile, wallet dialog, positions) and how they were made: [docs/screenshots](docs/screenshots/README.md). The artwork in these images is provisional (low-resolution placeholders awaiting final files; see [docs/ASSET_REVIEW.md](docs/ASSET_REVIEW.md)).
+More captures (mobile, wallet dialog, portfolio) and how they were made: [docs/screenshots](docs/screenshots/README.md). The artwork in these images is provisional (low-resolution placeholders awaiting final files; see [docs/ASSET_REVIEW.md](docs/ASSET_REVIEW.md)).
 
 ## Real testnet deployment and evidence
 
