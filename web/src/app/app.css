@@ -261,8 +261,8 @@
 .seg-tabs button { height: 36px; border: 0; border-radius: var(--r-pill); background: transparent; font: 600 var(--t-small) / 1 var(--font-text); color: var(--muted); cursor: pointer; transition: background-color var(--d-base) var(--ease), color var(--d-base) var(--ease), box-shadow var(--d-base) var(--ease); }
 .seg-tabs button:hover { color: var(--ink); }
 .seg-tabs button[aria-selected="true"] { background: var(--white); color: var(--ink); box-shadow: 0 1px 2px rgba(31, 29, 41, 0.08), inset 0 0 0 1px var(--hairline); }
-.mini-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
-.mini-tabs button { height: 32px; padding: 0 12px; border: 0; border-radius: var(--r-pill); background: transparent; box-shadow: inset 0 0 0 1px var(--line); font: 600 var(--t-caption) / 1 var(--font-text); color: var(--copy); cursor: pointer; transition: background-color var(--d-base) var(--ease), box-shadow var(--d-base) var(--ease), color var(--d-base) var(--ease); }
+.mini-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.mini-tabs button { height: 32px; padding: 0 6px; white-space: nowrap; border: 0; border-radius: var(--r-pill); background: transparent; box-shadow: inset 0 0 0 1px var(--line); font: 600 var(--t-caption) / 1 var(--font-text); color: var(--copy); cursor: pointer; transition: background-color var(--d-base) var(--ease), box-shadow var(--d-base) var(--ease), color var(--d-base) var(--ease); }
 .mini-tabs button:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--ink); }
 .mini-tabs button[aria-selected="true"] { background: var(--plum); color: var(--on-dark); box-shadow: none; }
 .mini-tabs button:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -304,7 +304,15 @@
   background: var(--white); box-shadow: inset 0 0 0 1px var(--hairline); transition: box-shadow var(--d-base) var(--ease);
 }
 .pick:hover { box-shadow: inset 0 0 0 1px var(--line), var(--shadow-soft); }
-.pick[aria-checked="true"] { box-shadow: inset 0 0 0 1.5px var(--plum), var(--shadow-soft); }
+/* selected: a soft lilac surface and a filled radio dot, so the choice reads without colour and never outweighs the action panel */
+.pick[aria-checked="true"] { background: linear-gradient(180deg, rgba(235, 230, 245, 0.75), rgba(242, 239, 248, 0.45)); box-shadow: inset 0 0 0 1px var(--cover); }
+.pick[aria-checked="true"]:hover { box-shadow: inset 0 0 0 1px var(--cover-deep), var(--shadow-soft); }
+.pick:active { transform: scale(0.995); }
+.pick:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.pick-name { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.pick-dot { flex: none; width: 16px; height: 16px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--line); background: var(--white); transition: box-shadow var(--d-base) var(--ease); }
+.pick[aria-checked="true"] .pick-dot { box-shadow: inset 0 0 0 1.5px var(--iris), inset 0 0 0 4.5px var(--white), inset 0 0 0 9px var(--iris); }
+.pick-figs em { font-style: normal; font-size: var(--t-label); font-weight: 500; color: var(--muted); }
 .pick-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .pick-top b { font: 600 1.0625rem / 1.2 var(--font-display); letter-spacing: -0.015em; }
 .pick-figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
@@ -325,6 +333,8 @@
 .status-box b { color: var(--ink); font-weight: 600; }
 .status-box.is-pending { background: var(--pending-tint); }
 .status-box.is-ok { background: var(--ok-tint); }
+.status-box.is-loss { background: var(--loss-tint); color: #8d1b2d; }
+.is-pending { color: var(--pending); }
 .exit { gap: 12px; }
 
 /* ---------------------------------------------------------------- rewards, portfolio */
@@ -428,3 +438,7 @@
 .pf-card .panel-title { font-size: var(--t-body); }
 .pf-claim { align-self: flex-start; }
 @container (max-width: 760px) { .pf-table { display: none; } .pf-cards { display: grid; } }
+.pf-manage { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 14px; }
+.pf-manage .link { font-size: var(--t-caption); white-space: nowrap; }
+.pf-card .pf-manage { justify-content: flex-start; }
+.atable .nowrap { white-space: nowrap; }

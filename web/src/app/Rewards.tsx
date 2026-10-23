@@ -56,8 +56,10 @@ export function Rewards(ctx: Ctx) {
                           <td><a href={href.market(m.slug)}>{m.name}</a></td>
                           <td className="r num wide-only">{p ? `${fmt(p.junior)} · ${fmt(p.senior)}` : "…"}</td>
                           <td className="r num"><b>{user ? fmt(r, 4) : "…"}</b> <small>MEZO</small></td>
-                          <td className="r"><button className="btn btn-dark btn-sm" disabled={busy || !user || r === 0n}
-                            onClick={() => send(`Claim MEZO · ${m.name}`, (w) => w.writeContract({ address: m.vault, abi: vaultAbi, functionName: "claimRewards" }))}>Claim</button></td>
+                          <td className="r">{r > 0n
+                            ? <button className="btn btn-dark btn-sm" disabled={busy || !user}
+                                onClick={() => send(`Claim MEZO · ${m.name}`, (w) => w.writeContract({ address: m.vault, abi: vaultAbi, functionName: "claimRewards" }))}>Claim</button>
+                            : <span className="t-caption">Nothing yet</span>}</td>
                         </tr>
                       );
                     })}
@@ -130,6 +132,10 @@ function VotePanel({ user, account, markets, send, d, gauge, busy }: Ctx) {
   const tokens = user?.veTokens ?? [];
   const [sel, setSel] = useState<bigint | null>(null);
   const [w, setW] = useState<Record<string, number>>({});
+  const [recorded, setRecorded] = useState<{ epoch: bigint; capped: string[] } | null>(null);
+  // A market's effective weight is its votes capped by its cover; once at the cap, more votes add nothing.
+  const capped = (m: (typeof markets)[number]) => m.coverCap > 0n && m.votes >= m.coverCap;
+  const shareOf = (m: (typeof markets)[number]) => (gauge && gauge.totalWeight > 0n ? Number((m.weight * 10_000n) / gauge.totalWeight) / 100 : 0);
   const token = useMemo(() => tokens.find((t) => t.id === sel) ?? tokens[0], [tokens, sel]);
   const eligible = markets.filter((m) => (user?.perVault[m.vault]?.juniorShares ?? 0n) > 0n);
   const total = eligible.reduce((a, m) => a + (w[m.vault] ?? 0), 0);
@@ -158,9 +164,15 @@ function VotePanel({ user, account, markets, send, d, gauge, busy }: Ctx) {
                     <label htmlFor={`w-${m.vault}`}>{m.name}</label>
                     <input id={`w-${m.vault}`} type="range" min={0} max={100} value={w[m.vault] ?? 0} onChange={(e) => setW({ ...w, [m.vault]: Number(e.target.value) })} />
                     <span className="num">{total ? Math.round(((w[m.vault] ?? 0) / total) * 100) : 0}%</span>
-                    <small className="num">current votes {fmt(token?.votes[m.vault] ?? 0n, 6)}</small>
+                    <small className="num">Effective share of rewards {shareOf(m).toFixed(1)}%{capped(m) ? " · at its cover cap: more votes add no weight" : ""}</small>
                   </div>
                 ))}
+              </div>
+            )}
+            {recorded && (
+              <div className="status-box is-ok" role="status">
+                <span className="chip chip-live">Vote recorded</span>
+                <p>Epoch {recorded.epoch.toString()}.{recorded.capped.length ? ` ${recorded.capped.join(" and ")} ${recorded.capped.length > 1 ? "were" : "was"} already at the cover cap, so the effective reward weight is unchanged.` : " The effective shares above are the gauge’s live figures."}</p>
               </div>
             )}
             {token?.votedThisEpoch && <p className="field-hint">Position #{token.id.toString()} already voted this epoch. It can vote again next epoch.</p>}
@@ -168,7 +180,9 @@ function VotePanel({ user, account, markets, send, d, gauge, busy }: Ctx) {
               <button className="btn btn-dark" disabled={busy || !token || total === 0 || token.votedThisEpoch}
                 onClick={() => {
                   const ms = eligible.filter((m) => (w[m.vault] ?? 0) > 0);
-                  send("Vote", (wc) => wc.writeContract({ address: d.gauge, abi: gaugeAbi, functionName: "vote", args: [token!.id, ms.map((m) => m.vault), ms.map((m) => BigInt(w[m.vault]))] }));
+                  const ep = gauge?.epoch ?? 0n, caps = ms.filter(capped).map((m) => m.name);
+                  send("Vote", (wc) => wc.writeContract({ address: d.gauge, abi: gaugeAbi, functionName: "vote", args: [token!.id, ms.map((m) => m.vault), ms.map((m) => BigInt(w[m.vault]))] }))
+                    .then((ok) => ok && setRecorded({ epoch: ep, capped: caps }));
                 }}>Vote</button>
               {token && Object.values(token.votes).some((v) => v > 0n) && (
                 <button className="btn btn-ghost" disabled={busy} onClick={() => send("Remove votes", (wc) => wc.writeContract({ address: d.gauge, abi: gaugeAbi, functionName: "reset", args: [token.id] }))}>Remove votes</button>

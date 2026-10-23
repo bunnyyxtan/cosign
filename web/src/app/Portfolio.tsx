@@ -1,8 +1,10 @@
 import { addrUrl, txUrl } from "../chain";
-import { ArrowE, ArrowNE } from "../ui/Icon";
+import { ArrowNE } from "../ui/Icon";
 import type { Ctx } from "./ctx";
 import { ConnectGate } from "./Markets";
-import { collateralValue, coverForShares, debtOf, fmt, fmtCoverShare, ltvBps, PageHead, pct, pctTrim, Row, short, WAD } from "./ui";
+import { ExitLabel } from "./Cosign";
+import { collateralValue, coverExit, debtOf, fmt, fmtCoverShare, ltvBps, PageHead, pct, pctTrim, Row, short, WAD } from "./ui";
+import type { Slug } from "./routes";
 import { href } from "./routes";
 
 /** Everything this wallet holds across the deployed markets, from the same reads the action panels use. */
@@ -20,10 +22,15 @@ export function Portfolio({ user, account, connect, markets, price, activity }: 
     const p = user?.perVault[m.vault];
     const debt = p ? debtOf(p.borrowShares, m) : 0n;
     const value = p ? collateralValue(p.collateral, price) : 0n;
-    const live = !!p && p.request.shares > 0n && p.request.round === m.round && now <= p.request.readyAt + m.withdrawWindow;
-    return { m, p, debt, value, live, ready: live && now >= p!.request.readyAt, any: !!p && (p.senior > 0n || p.junior > 0n || p.collateral > 0n || debt > 0n || p.rewards > 0n) };
+    const exit = coverExit(m, p, now);
+    return { m, p, debt, value, exit, any: !!p && (p.senior > 0n || p.junior > 0n || p.collateral > 0n || debt > 0n || p.rewards > 0n) };
   });
   const held = rows.filter((r) => r.any);
+  // Only the columns this wallet has something in; a dash then always means "none in this market".
+  const has = {
+    lend: held.some((r) => r.p!.senior > 0n), cover: held.some((r) => r.p!.juniorShares > 0n),
+    loan: held.some((r) => r.p!.collateral > 0n || r.debt > 0n), claim: held.some((r) => r.p!.rewards > 0n),
+  };
   const power = (user?.veTokens ?? []).reduce((a, t) => a + t.power, 0n);
   return (
     <>
@@ -50,22 +57,31 @@ export function Portfolio({ user, account, connect, markets, price, activity }: 
             <div className="panel-head"><h2 id="pos-h" className="panel-title">Positions</h2><span className="t-caption">Read at the latest block · updates every 15 s</span></div>
             <div className="table-wrap pf-table">
               <table className="atable">
-                <thead><tr><th>Market</th><th className="r">Lending</th><th className="r">Cover</th><th className="r">Collateral</th><th className="r">Debt</th><th className="r">Loan-to-value</th><th className="r">Claimable</th><th>Cover withdrawal</th><th /></tr></thead>
+                <thead><tr>
+                  <th>Market</th>
+                  {has.lend && <th className="r">Lending (MUSD)</th>}
+                  {has.cover && <><th className="r">Cover (MUSD)</th><th className="r">Your cover share</th></>}
+                  {has.loan && <><th className="r">Collateral (MEZO)</th><th className="r">Debt (MUSD)</th><th className="r">Loan-to-value</th></>}
+                  {has.claim && <th className="r">Claimable (MEZO)</th>}
+                  {has.cover && <th>Cover withdrawal</th>}
+                  <th className="r">Manage</th>
+                </tr></thead>
                 <tbody>
-                  {held.map(({ m, p, debt, value, live, ready }) => {
+                  {held.map(({ m, p, debt, value, exit }) => {
                     const ltv = ltvBps(debt, value);
                     const lim = (m.lltv * 10_000n) / WAD;
                     return (
                       <tr key={m.vault}>
-                        <td><a href={href.market(m.slug)}><b>{m.name}</b></a></td>
-                        <td className="r num">{p!.senior > 0n ? fmt(p!.senior) : "—"}</td>
-                        <td className="r num">{p!.junior > 0n ? <><span className="is-cover">{fmt(p!.junior)}</span> <small>{fmtCoverShare(p!.juniorShares, m.totalJuniorShares)}</small></> : "—"}</td>
-                        <td className="r num">{p!.collateral > 0n ? <>{fmt(p!.collateral, 4)} <small>MEZO</small></> : "—"}</td>
-                        <td className="r num">{debt > 0n ? fmt(debt) : "—"}</td>
-                        <td className={`r num ${ltv !== null && debt > 0n && ltv * 10n >= lim * 9n ? "is-loss" : ""}`}>{debt > 0n && ltv !== null ? <>{pct(ltv)} <small>/ {pctTrim(lim)}</small></> : "—"}</td>
-                        <td className="r num">{p!.rewards > 0n ? <>{fmt(p!.rewards, 4)} <small>MEZO</small></> : "—"}</td>
-                        <td>{live ? (ready ? <span className="chip chip-live">Ready</span> : <span className="chip chip-pending">Until {new Date(Number(p!.request.readyAt) * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>) : <span className="t-caption">None</span>}</td>
-                        <td className="r"><a className="btn btn-light btn-sm" href={href.market(m.slug)}>Manage</a></td>
+                        <td className="nowrap"><a href={href.market(m.slug)}><b>{m.name}</b></a></td>
+                        {has.lend && <td className="r num">{p!.senior > 0n ? fmt(p!.senior) : "—"}</td>}
+                        {has.cover && <><td className="r num">{p!.junior > 0n ? <span className="is-cover">{fmt(p!.junior)}</span> : "—"}</td>
+                          <td className="r num">{p!.juniorShares > 0n ? fmtCoverShare(p!.juniorShares, m.totalJuniorShares) : "—"}</td></>}
+                        {has.loan && <><td className="r num">{p!.collateral > 0n ? fmt(p!.collateral, 4) : "—"}</td>
+                          <td className="r num">{debt > 0n ? fmt(debt) : "—"}</td>
+                          <td className={`r num ${ltv !== null && debt > 0n && ltv * 10n >= lim * 9n ? "is-loss" : ""}`}>{debt > 0n && ltv !== null ? <>{pct(ltv)} <small>/ {pctTrim(lim)}</small></> : "—"}</td></>}
+                        {has.claim && <td className="r num">{p!.rewards > 0n ? fmt(p!.rewards, 4) : "—"}</td>}
+                        {has.cover && <td className="t-small">{p!.juniorShares > 0n && exit.kind !== "none" ? <ExitLabel {...exit} /> : "—"}</td>}
+                        <td className="r"><Manage slug={m.slug} lending={p!.senior > 0n} cover={p!.juniorShares > 0n} loan={p!.collateral > 0n || debt > 0n} claim={p!.rewards > 0n} /></td>
                       </tr>
                     );
                   })}
@@ -73,25 +89,26 @@ export function Portfolio({ user, account, connect, markets, price, activity }: 
               </table>
             </div>
             <div className="pf-cards">
-              {held.map(({ m, p, debt, value, live, ready }) => {
+              {held.map(({ m, p, debt, value, exit }) => {
                 const ltv = ltvBps(debt, value);
                 return (
                   <div key={m.vault} className="pf-card">
-                    <div className="panel-head"><h3 className="panel-title"><a href={href.market(m.slug)}>{m.name}</a></h3><a className="link" href={href.market(m.slug)}>Manage <ArrowE size={14} /></a></div>
+                    <h3 className="panel-title"><a href={href.market(m.slug)}>{m.name}</a></h3>
                     <dl className="rows">
                       {p!.senior > 0n && <Row k="Lending">{fmt(p!.senior)} MUSD</Row>}
-                      {p!.junior > 0n && <Row k="Cover" tone="cover">{fmt(p!.junior)} MUSD <small>· {fmtCoverShare(p!.juniorShares, m.totalJuniorShares)}</small></Row>}
-                      {live && <Row k="Cover withdrawal">{ready ? <span className="is-ok">Ready · {fmt(coverForShares(p!.request.shares, m))} MUSD</span> : `Notice until ${new Date(Number(p!.request.readyAt) * 1000).toLocaleTimeString()}`}</Row>}
+                      {p!.junior > 0n && <Row k="Cover" tone="cover">{fmt(p!.junior)} MUSD</Row>}
+                      {p!.juniorShares > 0n && <Row k="Your cover share">{fmtCoverShare(p!.juniorShares, m.totalJuniorShares)} of all cover</Row>}
+                      {p!.juniorShares > 0n && exit.kind !== "none" && <Row k="Cover withdrawal"><ExitLabel {...exit} /></Row>}
                       {p!.collateral > 0n && <Row k="Collateral">{fmt(p!.collateral, 4)} MEZO <small>≈ {fmt(value)} MUSD</small></Row>}
                       {debt > 0n && <Row k="Debt">{fmt(debt)} MUSD</Row>}
                       {debt > 0n && <Row k="Loan-to-value">{ltv === null ? "—" : pct(ltv)} <small>/ {pctTrim((m.lltv * 10_000n) / WAD)}</small></Row>}
                       {p!.rewards > 0n && <Row k="Claimable">{fmt(p!.rewards, 4)} MEZO</Row>}
                     </dl>
+                    <Manage slug={m.slug} lending={p!.senior > 0n} cover={p!.juniorShares > 0n} loan={p!.collateral > 0n || debt > 0n} claim={p!.rewards > 0n} />
                   </div>
                 );
               })}
             </div>
-            {held.some((r) => r.p!.rewards > 0n) && <a className="btn btn-dark btn-sm pf-claim" href={href.rewards()}>Claim rewards</a>}
           </section>
         )}
 
@@ -117,4 +134,14 @@ export function Portfolio({ user, account, connect, markets, price, activity }: 
       )}
     </>
   );
+}
+
+/** One restrained link per kind of position, each to the control that manages it. */
+function Manage({ slug, lending, cover, loan, claim }: { slug: Slug; lending: boolean; cover: boolean; loan: boolean; claim: boolean }) {
+  const links: [string, string][] = [];
+  if (lending) links.push(["Lending", href.market(slug)]);
+  if (cover) links.push(["Cover", href.cosign(slug)]);
+  if (loan) links.push(["Loan", href.market(slug, "borrow")]);
+  if (claim) links.push(["Claim", href.rewards()]);
+  return <span className="pf-manage">{links.map(([t, h]) => <a key={t} className="link" href={h}>{t}</a>)}</span>;
 }

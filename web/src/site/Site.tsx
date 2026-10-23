@@ -182,11 +182,11 @@ function Roles() {
         <a className="link" href={APP}>View the markets <ArrowNE size={14} /></a>
       </div>
       <div className="roles-grid">
-        <RoleCard i={0} cls="r-lend" slot="lend" n="01" k="Lenders" title={<>Earn behind<br />the cover.</>}
+        <RoleCard i={0} cls="r-lend" slot="lend" n="01" k="Lenders" title={<>Lend behind<br />the cover.</>}
           body="Deposit MUSD into the senior tranche. Cover sits in front of recognised losses, up to the amount posted."
           href={APP} cta="Explore lending" />
         <RoleCard i={1} cls="r-cosign" slot="cosign" n="02" k="Co-signers" title={<>Back what<br />you believe in.</>}
-          body="Post first-loss cover, direct MEZO rewards with veBTC votes, and earn a premium on lenders' interest."
+          body="Post first-loss cover and share in borrower interest when the market earns it. With veBTC, vote MEZO rewards toward it; rewards depend on what each epoch is funded with."
           href="/app/co-sign" cta="Explore co-signing" />
         <article className="role role-borrow card" data-reveal style={css({ "--i": 2 })}>
           <div className="role-copy">
@@ -380,7 +380,7 @@ function Limits() {
 
 const FAQ = [
   ["Does Cosign guarantee lender deposits?", "No. Posted cover absorbs recognised losses first, and any larger loss reaches lenders. A co-signer whose withdrawal notice has ended can also leave before a loss is booked."],
-  ["Where do the MEZO rewards come from?", "The testnet rewards are funded by the Cosign team through the gauge. They are not Mezo protocol emissions."],
+  ["Where do the MEZO rewards come from?", "Anyone can fund an epoch through the gauge; on testnet so far the Cosign team has. They are not Mezo protocol emissions, and an unfunded epoch pays nothing."],
   ["Is the 19× limit a borrowing cap?", "No. It caps new lender deposits into the Bold vault relative to its cover. Borrowing on the underlying Morpho market is not limited by Cosign."],
   ["Is Cosign on mainnet?", "No. It is an unaudited Mezo testnet prototype with a price oracle the Cosign team controls. Do not use it with real funds."],
   ["Can I check the losses myself?", "Yes. The replay and the evidence section link to the Mezo testnet transactions, and the repository holds every recorded step and check."],
