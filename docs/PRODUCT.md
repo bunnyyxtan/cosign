@@ -4,7 +4,7 @@ Cosign is an unaudited prototype on Mezo testnet. This document explains what it
 
 ## The idea in one paragraph
 
-A lending market asks lenders to trust a risk they cannot see: if a loan goes bad, who pays first, and how much of their own money have the people who vouched for the market put at stake? Cosign makes the answer visible and enforceable. A veBTC holder (a **co-signer**) posts MUSD as **cover** in front of a market's lenders and votes for it. A loss is charged to cover first; lenders lose money only once the cover is gone. The cover also sets the credit limit: the market can only take deposits up to a multiple of it. **Vote = bond = credit limit.**
+A lending market asks lenders to trust a risk they cannot see: if a loan goes bad, who pays first, and how much of their own money have the people who vouched for the market put at stake? Cosign makes the answer visible and enforceable. A **co-signer** posts MUSD as **cover** in front of a market's lenders (no veBTC is needed for that) and, if they hold veBTC, votes for it. A loss is charged to cover first; lenders lose money only once the cover is gone. The cover also sets the credit limit: the market can only take deposits up to a multiple of it. **Vote = bond = credit limit.**
 
 Cosign does not replace a lending protocol. It sits in front of one market on [Morpho Blue](https://github.com/morpho-org/morpho-blue), unmodified.
 
@@ -23,7 +23,7 @@ Cover is first-loss capital, not insurance. It protects lenders only up to its s
 
 | Role | What they do | What they earn | What they risk |
 |---|---|---|---|
-| **Co-signer** (veBTC holder) | Posts MUSD cover (junior tranche), votes MEZO rewards toward the market | A premium out of the senior tranche's interest, their own interest, and 30% of the market's MEZO rewards | The cover, first |
+| **Co-signer** | Posts MUSD cover (junior tranche; no veBTC needed). With veBTC, can also vote MEZO rewards toward the market | A premium out of the senior tranche's interest, their own interest, and 30% of the market's MEZO rewards | The cover, first |
 | **Senior lender** | Deposits MUSD behind the cover | The market's interest after the junior premium, and 70% of the market's MEZO rewards | Only the part of a loss larger than the cover |
 | **Borrower** | Posts MEZO collateral and borrows MUSD from the Morpho market | Access to MUSD at a fixed rate | Liquidation above the market's loan-to-value limit |
 | **Anyone** | Funds a rewards epoch, distributes it once it ends, syncs a vault, pokes stale votes | Nothing | Nothing |

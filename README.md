@@ -3,7 +3,7 @@
 <p align="center"><em>Credit ratings with skin in the game.</em></p>
 
 <p align="center">
-  First-loss cover for Morpho Blue lending markets on Mezo, posted by veBTC holders.<br>
+  First-loss cover for Morpho Blue lending markets on Mezo, posted by co-signers.<br>
   <strong>Unaudited prototype · Mezo testnet only · no real funds</strong> · <a href="#security-and-limitations">Read the limits first</a>
 </p>
 
@@ -17,7 +17,7 @@ Anyone can lend into an on-chain market, but a lender cannot tell how much of th
 
 ## What Cosign does
 
-A **co-signer** (a veBTC holder) posts MUSD as **junior cover** in a market. **Senior lenders** deposit MUSD behind that cover. If a liquidation leaves bad debt, the loss is charged to the cover first and reaches lenders only for the part that exceeds it. In return, co-signers earn a premium on the interest lenders pay and a share of the MEZO rewards the market attracts.
+A **co-signer** posts MUSD as **junior cover** in a market. Anyone with MUSD can do this: **no veBTC is needed to post cover.** **Senior lenders** deposit MUSD behind that cover. If a liquidation leaves bad debt, the loss is charged to the cover first and reaches lenders only for the part that exceeds it. In return, co-signers earn a premium on the interest lenders pay and a share of the MEZO rewards the market attracts. veBTC is needed only for the optional part: **voting** MEZO rewards toward a market, backed by the cover you posted.
 
 This is different from a plain lending pool or an insurance fund because the protection is **capital that sits in front of the lender in the same vault**, in a fixed order, visible before you deposit:
 
@@ -27,13 +27,13 @@ This is different from a plain lending pool or an insurance fund because the pro
 | What the lender can check | Nothing about who stands behind the market | Cover posted, cover ratio, lender room (`senior ≤ maxLeverage × cover`) |
 | What a co-signer risks | Nothing | Their cover, earning a premium for it |
 
-**Vote = Bond = Credit limit.** A co-signer's veBTC vote for a market counts only up to the cover they have posted; cover sets how much lenders may deposit; and cover cannot leave without notice. Full detail, with a worked numeric example, is in [docs/PRODUCT.md](docs/PRODUCT.md).
+**Vote = Bond = Credit limit.** A co-signer's veBTC vote (optional; cover itself needs no veBTC) for a market counts only up to the cover they have posted; cover sets how much lenders may deposit; and cover cannot leave without notice. Full detail, with a worked numeric example, is in [docs/PRODUCT.md](docs/PRODUCT.md).
 
 ### How the three roles interact
 
 | Role | Does | Gets | Risks |
 |---|---|---|---|
-| **Co-signer** | Posts MUSD cover; votes with veBTC | Interest premium, MEZO rewards | Cover is lost first |
+| **Co-signer** | Posts MUSD cover (no veBTC needed); may vote with veBTC to steer rewards | Interest premium, MEZO rewards | Cover is lost first |
 | **Senior lender** | Deposits MUSD behind the cover | Interest | Only a loss larger than the cover |
 | **Borrower** | Posts MEZO, borrows MUSD on Morpho Blue | Credit | Liquidation |
 
@@ -67,7 +67,7 @@ The website replays a real testnet liquidation step by step from recorded transa
 | <img src="docs/screenshots/app-cosign-cover.jpg" alt="Co-sign page: cover position and partial withdrawal"> | <img src="docs/screenshots/app-rewards.jpg" alt="Rewards page: epoch, fund and distribute, claim"> |
 | <img src="docs/screenshots/app-markets.jpg" alt="Markets overview with two markets"> | <img src="docs/screenshots/app-evidence.jpg" alt="Recorded evidence page linking transactions"> |
 
-More captures (mobile, wallet dialog, positions) and how they were made: [docs/screenshots](docs/screenshots/README.md).
+More captures (mobile, wallet dialog, positions) and how they were made: [docs/screenshots](docs/screenshots/README.md). The artwork in these images is provisional (low-resolution placeholders awaiting final files; see [docs/ASSET_REVIEW.md](docs/ASSET_REVIEW.md)).
 
 ## Real testnet deployment and evidence
 

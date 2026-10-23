@@ -16,10 +16,13 @@ The app is a static Vite build. It reads the Mezo testnet RPC from each visitor'
 ## Checked
 
 - The CI jobs, reproduced from a clean clone: web (install, math checks, production build, `npm audit --omit=dev` with 0 vulnerabilities) and contracts (build and all 40 tests at 2,000 fuzz runs). They also run on every push to `main`.
-- The content-security policy against the site, Markets and Recorded evidence pages: no violations.
+- Served exactly as Vercel will serve it (the headers from `vercel.json`, which match `web/public/_headers`), every page was loaded at 1440 px and 390 px, plain and with a read-only stand-in wallet connected: website, Markets, Bold, Steady, Recorded evidence, Co-sign, Rewards, Positions. Result, 18 of 18 loads: no CSP violation, no console error, no failed request, no horizontal overflow, the testnet and unaudited warning present, no mock or dev-wallet text. (Scripted run on 23 October 2026, local server, live testnet RPC.)
+- The production bundle contains no dev-wallet code and none of the local test key values.
 - Not yet checked: a hosted URL (headers, the `/app/` directory index and public-RPC behaviour from a visitor's network), and the policy with a wallet connected.
 
 ## Vercel
+
+Deploy from `main` only (Production Branch `main`). The project needs no environment variables and any Node 20 or newer; leave Framework Preset as "Other" so `vercel.json` controls the build.
 
 1. Import `bunnyyxtan/cosign`. Leave the root directory as the repository root; `vercel.json` sets the build command and output directory.
 2. Deploy. No environment variables are needed. Do **not** set `VITE_RPC` or any `VITE_DEV_*` value.

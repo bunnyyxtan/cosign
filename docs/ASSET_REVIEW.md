@@ -17,6 +17,10 @@ Nine of the eleven files carried a 6 to 9 px white band from the board crop; `on
 | `market-steady` | `steady` | Steady market thumbnail | Calm and light: the thicker-cover configuration. Copy beside it states that neither market is safe. |
 | `landscape-portal` | `closing` | Closing call to action | An arch opening onto a vista, under "Enter the Cosign app". 1,055 px wide, so the band is capped and fades into the card at the sides. |
 
+## Provisional status
+
+**All six images in `web/src/art/` (`hero`, `lend`, `cosign`, `bold`, `steady`, `closing`) are provisional.** They are the V1 concept-board crops (225 to 342 px tall in the source) enlarged by the layout, so large panoramas and retina screens show softness. Layout, crops and colour are final and approved; only the pixels are placeholders. Replacing them needs no code change: deliver the files in the specification below under the same names. Nothing in the app depends on them, and hosting is not blocked by them. The README and website screenshots in `docs/screenshots` show these provisional images.
+
 ## Rejected
 
 | File | Reason |
