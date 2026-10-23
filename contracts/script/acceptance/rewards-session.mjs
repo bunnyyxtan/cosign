@@ -9,6 +9,8 @@ const F = '0xF08043221338c621b6f2f387AF70B33797629371', MEZO = '0x7B7c0000000000
 const VE = '0xB63fcCd03521Cf21907627bd7fA465C129479231', G = '0x67e8De42E32000B703Cf95c05009eE757F325b11', BOLD = '0x49C8a8d5106B2878679d10EAEA71D0e6793bd7D7', STEADY = '0x8f89117d71269E35D980905327e4C1252294B4a9';
 const MUSD = '0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503', ORACLE = '0xE9a83636AcBf75eBf3b20497B8126624D4378cc5', MO = '0xC6db4999d8428b259FD198A88d2B8E6494045A48';
 const ID = '0x872e50f5503b7d370ca1d782bae49df95fe39e6d7d8ae36adb0b1371eb695d3b';
+// The founder's authorization (23 Oct 2026): exactly 0.001 BTC for 604800 s, unlocking Thu 29 Oct 2026 00:00 UTC.
+const LOCK_SECONDS = 604800n, AUTH_UNLOCK = 1793232000n;
 const E = 10n ** 18n, LOCK = E / 1000n, FUND = 2n * E, DAY = 86400n, low = (s) => s.toLowerCase();
 const REHEARSAL_TOKEN = process.env.WATCH_TOKEN ? BigInt(process.env.WATCH_TOKEN) : null;
 const say = (m) => console.log(`[watch3 ${new Date().toISOString().slice(11, 19)}] ${m}`);
@@ -52,14 +54,14 @@ const stepCtx = { fundEpoch: null, distTs: null, token: REHEARSAL_TOKEN, lockEnd
 
 const STEPS = [
   { name: '1 BTC approve to veBTC, 0.001 BTC', to: BTC, lock: true,
-    verifyData: (d) => [!d.startsWith('0x095ea7b3') && 'not an approve', low(addrAt(d, 0)) !== low(VE) && 'spender is not veBTC', !(argAt(d, 1) >= LOCK && argAt(d, 1) <= 2n * LOCK) && `amount ${m(argAt(d, 1), 6)} BTC; expected 0.001 (at most 0.002); an unlimited approval is not in the manifest`],
+    verifyData: (d) => [!d.startsWith('0x095ea7b3') && 'not an approve', low(addrAt(d, 0)) !== low(VE) && 'spender is not veBTC', argAt(d, 1) !== LOCK && `amount ${m(argAt(d, 1), 6)} BTC; the authorization is exactly 0.001 BTC (no larger or unlimited approval)`],
     check: (pre, post, r, tx) => [post.allowBtc !== argAt(tx.input, 1) && 'BTC allowance differs from the approved amount', post.ids.length !== pre.ids.length && 'a lock appeared'] },
-  { name: '2 veBTC createLock, 0.001 BTC for 7 days (unlocks the next Thursday 00:00 UTC)', to: VE, lock: true, ctx: true,
-    verifyData: (d) => [!(d.startsWith(calldata('createLock(uint256,uint256)', '1', '1').slice(0, 10))) && 'not createLock(uint256,uint256)', argAt(d, 0) !== LOCK && `locks ${m(argAt(d, 0), 6)} BTC, expected 0.001`, !(argAt(d, 1) >= 5n * DAY && argAt(d, 1) <= 33n * DAY) && `duration ${Number(argAt(d, 1)) / 86400} days outside the 7 to 33 days the contract accepts`],
+  { name: '2 veBTC createLock(0.001 BTC, 604800 s): unlocks Thu 29 Oct 2026 00:00 UTC', to: VE, lock: true, ctx: true,
+    verifyData: (d) => [!(d.startsWith(calldata('createLock(uint256,uint256)', '1', '1').slice(0, 10))) && 'not createLock(uint256,uint256)', argAt(d, 0) !== LOCK && `locks ${m(argAt(d, 0), 6)} BTC, expected 0.001`, argAt(d, 1) !== LOCK_SECONDS && `duration ${argAt(d, 1)} s; the authorization is exactly 604800 s (7 days)`],
     check: (pre, post, r, tx, ctx) => {
       const id = post.ids.find((i) => !pre.ids.includes(i)); stepCtx.token = id ?? null;
       const lk = id !== undefined ? nums(call(VE, 'locked(uint256)(int128,uint256)', String(id))) : null; if (lk) stepCtx.lockEnd = lk[1];
-      return [id === undefined && 'no new veBTC position appeared in the wallet', lk && lk[0] !== LOCK && `locked amount ${m(lk[0], 6)}`, lk && !(lk[1] > ctx.ts && lk[1] <= ctx.ts + 34n * DAY) && 'lock end outside the expected range', lk && lk[1] % (7n * DAY) !== 0n && 'lock end is not a Thursday 00:00 UTC', !near(pre.btc - post.btc, LOCK, 10n ** 14n) && `BTC fell by ${m(pre.btc - post.btc, 8)}, expected 0.001 plus gas`, id !== undefined && big(call(VE, 'balanceOfNFT(uint256)(uint256)', String(id))) === 0n && 'the new position has no voting power'];
+      return [id === undefined && 'no new veBTC position appeared in the wallet', lk && lk[0] !== LOCK && `locked amount ${m(lk[0], 6)}`, lk && !(lk[1] > ctx.ts && lk[1] <= ctx.ts + 34n * DAY) && 'lock end outside the expected range', lk && lk[1] !== AUTH_UNLOCK && `lock ends ${new Date(Number(lk[1]) * 1000).toISOString()}, not the authorized 2026-10-29T00:00Z`, !near(pre.btc - post.btc, LOCK, 10n ** 14n) && `BTC fell by ${m(pre.btc - post.btc, 8)}, expected 0.001 plus gas`, id !== undefined && big(call(VE, 'balanceOfNFT(uint256)(uint256)', String(id))) === 0n && 'the new position has no voting power'];
     },
     note: (pre, post) => `new veBTC position #${stepCtx.token}, unlocks ${new Date(Number(stepCtx.lockEnd) * 1000).toISOString().slice(0, 16)} UTC, voting power ${m(big(call(VE, 'balanceOfNFT(uint256)(uint256)', String(stepCtx.token))), 6)}; it cannot be withdrawn before then` },
   { name: '3 gauge.vote(position, [Bold], [100])', to: G, data: () => calldata('vote(uint256,address[],uint256[])', String(stepCtx.token), `[${BOLD}]`, '[100]'),

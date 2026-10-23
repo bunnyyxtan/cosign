@@ -114,7 +114,7 @@ All addresses, IRMs and Mezo's own MUSD, MEZO and veBTC addresses: [`contracts/d
 | Deployment against the chain | `python -I contracts/script/verify_deploy.py` | 43/43 |
 | Deployed bytecode against source | `python -I contracts/script/verify_bytecode.py` | 8/8 |
 | CI on `main` | [GitHub Actions](.github/workflows/ci.yml): contracts and web jobs, no secrets | See the badge above |
-| **Real browser-wallet testing (Rabby)** | [docs/WALLET_ACCEPTANCE.md](docs/WALLET_ACCEPTANCE.md) | **Partial: 12 rows PASS, 4 PARTIAL, 25 NOT RUN, none failed** |
+| **Real browser-wallet testing (Rabby)** | [docs/WALLET_ACCEPTANCE.md](docs/WALLET_ACCEPTANCE.md) | **Partial: 13 rows PASS, 5 PARTIAL, 23 NOT RUN, none failed** |
 
 ### Real-wallet (Rabby) results, summarised
 
@@ -128,7 +128,7 @@ A person signed every transaction in the Rabby browser extension, and a read-onl
 | Borrow lifecycle: add collateral, borrow, repay, withdraw collateral (E1, E2, E4, E5) | PASS | [`0x36b96b80…`](https://explorer.test.mezo.org/tx/0x36b96b80baf3c35450a320d3aa9004b91b65f8b6abfd1cad1797728a91c74bab), [`0x03d16f34…`](https://explorer.test.mezo.org/tx/0x03d16f343ca760e7c4d8fbcf5eb33aaab4e05db797d8a656797820504f075113), [`0x200e44ce…`](https://explorer.test.mezo.org/tx/0x200e44cee58cada8753fd94cb68a9459413e2399c6a69cf253f6a5cc2ec9c83c), [`0x2ae0e4f9…`](https://explorer.test.mezo.org/tx/0x2ae0e4f9c997cdc21d5da47bfbf71b72103ea469a7d228cd10c434cb49be320c) |
 | Request cover withdrawal, wait the notice period, withdraw (C3, C5) | PASS | request [`0x9ad85812…`](https://explorer.test.mezo.org/tx/0x9ad85812aefd3fbf4f833ab8299c1bb379cac48b41ac7a7559f3c13406c499fc), withdraw [`0x8db44c5f…`](https://explorer.test.mezo.org/tx/0x8db44c5f70f6807280ee4e745de5d73bcecef3c1e8b279a1934ea68f0525c670) |
 | Early withdrawal is refused (C4) | PARTIAL: verified by simulation and read-only checks, not by a real-wallet attempt | Log |
-| Rewards: veBTC vote, fund, distribute, claim (D rows) | NOT RUN with a real wallet. Only the MEZO allowance was signed in Rabby; the loop itself is proven by the recorded deployer-signed run above | [`0x1ffa2d7e…`](https://explorer.test.mezo.org/tx/0x1ffa2d7ead074c50fa90b4d13958697dca6911e02374112500ef336dc19a8e8e) |
+| Rewards loop: lock BTC for veBTC, vote, fund 2 MEZO, distribute, claim (D1, D4) | PASS for the vote (D1); PARTIAL for the claim (D4: paid 0.165441 MEZO, a second claim not tried). Position #402 locks 0.001 BTC until 29 Oct 2026 | lock [`0xbbddc413…`](https://explorer.test.mezo.org/tx/0xbbddc4134b10410b57dc9337140503bba75cd2a968a4b944594089e54de7541e), vote [`0x634c7d73…`](https://explorer.test.mezo.org/tx/0x634c7d733b91e7e515df7a1a3b9c078ee0e6403bb7a390bb9846a63e2b59b1e3), fund [`0x2ef70311…`](https://explorer.test.mezo.org/tx/0x2ef70311281eb162bf2e3d695d4361e38dbbc85ddfdc6251230fc1f31f578ab9), distribute [`0xdcf672bc…`](https://explorer.test.mezo.org/tx/0xdcf672bceb469b8a2501901bb3e6bfbf1ce8f1074e126fd68bc6080df23abe93), claim [`0x147462ef…`](https://explorer.test.mezo.org/tx/0x147462ef997149fb25d456dbcd2c6cc7f9f53203b08a50703ed326d8aad3c6af) |
 | Rejecting prompts, wrong network, network add, OKX Wallet | NOT RUN | |
 
 **Simulations are labelled as such** and never counted: scripted browser runs, local-fork rehearsals and the development wallet shim are not wallet evidence. OKX Wallet has not been run.
