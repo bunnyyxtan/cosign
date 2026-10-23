@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import type { Address, Hex } from "viem";
+import { keccak256, toHex, type Address, type Hex } from "viem";
 import {
   authorizedAccount, client, connectWallet, disconnectWallet, ensureChain, erc20Abi, loadDeployment, loadLosses, loadMarkets,
   loadUser, mezoTestnet, selectProvider, setDisconnected, txUrl, walletChainId, walletClient, wasDisconnected,
@@ -7,7 +7,10 @@ import {
   type DemoRun, type Deployment, type GaugeState, type LossEvent, type MarketState, type UserState,
 } from "./chain";
 import type { Ctx, Next } from "./app/ctx";
-import { add, dismiss, explain, isOpen, mine, sweep, tone, toasts, update, type TxItem } from "./app/activity";
+import {
+  add, blocking, dismiss, explain, forAccount, isOpen, mine, parseSaved, reconcile, SAVE_KEY, sweep, toSave, tone, toasts, unresolved, update,
+  type Lookup, type TxItem,
+} from "./app/activity";
 import { ConnectModal } from "./app/Connect";
 import { Cosign } from "./app/Cosign";
 import { Rewards } from "./app/Rewards";
@@ -30,6 +33,21 @@ async function waitReceipt(hash: Hex) {
   }
   return null;
 }
+
+/** One receipt lookup: a receipt, none yet, or no answer from the RPC. */
+async function lookup(hash: Hex): Promise<Lookup> {
+  try {
+    const r = await client.getTransactionReceipt({ hash });
+    return { status: r.status, block: r.blockNumber };
+  } catch (e) {
+    return (e as { name?: string }).name === "TransactionReceiptNotFoundError" ? null : "error";
+  }
+}
+
+/** The sending account is stored only as this tag, never as an address. */
+const tag = (a: string) => keccak256(toHex(a.toLowerCase()));
+const readSaved = () => { try { return parseSaved(localStorage.getItem(SAVE_KEY)); } catch { return []; } };
+const writeSaved = (v: unknown[]) => { try { if (v.length) localStorage.setItem(SAVE_KEY, JSON.stringify(v)); else localStorage.removeItem(SAVE_KEY); } catch { /* storage blocked: recovery lasts for this page only */ } };
 
 export type Route =
   | { page: "markets" }
@@ -229,6 +247,41 @@ export default function App() {
   const seq = useRef(0);
   const flying = useRef(false);
   const held = useRef(false);
+  const live = useRef<TxItem[]>([]);
+  live.current = activity;
+  const blocked = blocking(activity, account);
+
+  // Unresolved hashes survive a reload. Restore this account's before saving anything for it, so nothing is lost.
+  const restoredFor = useRef<string | null>(null);
+  useEffect(() => {
+    restoredFor.current = null;
+    if (!account) return;
+    const now = Date.now();
+    const back = forAccount(readSaved(), tag(account), mezoTestnet.id, now).filter((x) => !live.current.some((t) => t.tx === x.tx));
+    if (back.length) setActivity((l) => back.reduce((acc, x) => add(acc, { id: ++seq.current, account, label: x.label, state: "pending", text: "Checking Mezo testnet for this transaction", tx: x.tx, at: x.at, restored: true }), l));
+    restoredFor.current = account;
+  }, [account]);
+  useEffect(() => {
+    if (!account || restoredFor.current !== account) return;
+    writeSaved(toSave(readSaved(), activity, tag(account), mezoTestnet.id, Date.now(), tag));
+  }, [activity, account]);
+
+  // Restored and unknown transactions are looked up again, never resent: every 4 s while pending, every 30 s once unknown.
+  const checked = useRef<Record<number, number>>({});
+  useEffect(() => {
+    const t = setInterval(async () => {
+      const now = Date.now();
+      const due = mine(live.current, account).filter((x) => unresolved(x) && (x.restored || x.state === "unknown") && now - (checked.current[x.id] ?? 0) >= (x.state === "unknown" ? 30_000 : 4_000));
+      for (const x of due) {
+        checked.current[x.id] = now;
+        const next = reconcile(x, await lookup(x.tx!), Date.now());
+        if (!next) continue;
+        note(x.id, next);
+        if (next.state === "done") { if (next.block && next.block > floor.current) floor.current = next.block; refresh(true); if (d) loadLosses(d).then(setLosses).catch(() => {}); }
+      }
+    }, 2000);
+    return () => clearInterval(t);
+  }, [account, refresh, d]); // eslint-disable-line react-hooks/exhaustive-deps
   const note = (id: number, p: Parameters<typeof update>[2]) => setActivity((l) => update(l, id, p, Date.now()));
   useEffect(() => {
     const t = setInterval(() => setActivity((l) => sweep(l, Date.now(), held.current)), 500);
@@ -252,7 +305,8 @@ export default function App() {
   const send = useCallback(
     async (label: string, write: (w: ReturnType<typeof walletClient>) => Promise<Hex>): Promise<number | false> => {
       // One transaction at a time, enforced here rather than by disabled buttons alone.
-      if (!account || flying.current) return false;
+      // Nor while an earlier one's outcome is unknown: sending again could duplicate it.
+      if (!account || flying.current || blocking(live.current, account).length) return false;
       flying.current = true;
       setBusy(true);
       const id = ++seq.current;
@@ -301,7 +355,7 @@ export default function App() {
   /** Approve `spender` for `amount` of `token` if the current allowance is short. */
   const approveIfNeeded = useCallback(
     async (token: Address, spender: Address, amount: bigint, label: string, next: Next) => {
-      if (!account || flying.current) return false;
+      if (!account || flying.current || blocking(live.current, account).length) return false;
       const allowance = await client.readContract({ address: token, abi: erc20Abi, functionName: "allowance", args: [account, spender] }).catch(() => null);
       if (allowance === null) {
         const id = ++seq.current;
@@ -328,7 +382,7 @@ export default function App() {
   );
 
   const mineAll = mine(activity, account);
-  const ctx: Ctx = { d: d!, markets, gauge, price, user, account, send, approveIfNeeded, connect, about: () => setAboutOpen(true), losses, lossesFailed, demo, busy, activity: mineAll };
+  const ctx: Ctx = { d: d!, markets, gauge, price, user, account, send, approveIfNeeded, connect, about: () => setAboutOpen(true), losses, lossesFailed, demo, busy: busy || blocked.length > 0, activity: mineAll };
   const wrongChain = !!account && chainId !== null && chainId !== mezoTestnet.id;
   const section = route.page === "market" || route.page === "evidence" ? "markets" : route.page;
   const marketName = route.page === "market" ? markets.find((m) => m.vault.toLowerCase() === route.vault.toLowerCase())?.name ?? "Market" : "";
@@ -380,7 +434,7 @@ export default function App() {
           </div>
         </header>
 
-        {(wrongChain || syncing || loadError || !online) && (
+        {(wrongChain || syncing || loadError || !online || blocked.length > 0) && (
           <div className="bar-in banners">
             {wrongChain && (
               <div className="banner is-loss" role="alert">
@@ -393,6 +447,12 @@ export default function App() {
               <div className="banner is-loss" role="alert">
                 <span>{loadError}. Figures below may be out of date.</span>
                 <button className="btn btn-ghost btn-sm" onClick={() => refresh()}>Try again</button>
+              </div>
+            )}
+            {!busy && blocked.length > 0 && (
+              <div className="banner is-pending" role="status">
+                <span><span className="spin" aria-hidden="true" />{blocked[0].label}: not confirmed yet. New transactions are paused until it is, or until you close its notice after checking the explorer.</span>
+                <a className="btn btn-ghost btn-sm" href={txUrl(blocked[0].tx!)} target="_blank" rel="noreferrer">Explorer <ArrowNE size={12} /></a>
               </div>
             )}
             {syncing && (
@@ -421,7 +481,7 @@ export default function App() {
         </main>
       </div>
 
-      <Toasts items={toasts(activity, account)} busy={busy} onClose={(id) => setActivity((l) => dismiss(l, id))}
+      <Toasts items={toasts(activity, account)} busy={busy || blocked.length > 0} onClose={(id) => setActivity((l) => dismiss(l, id))}
         onHold={(h) => { held.current = h; }} />
       <ConnectModal open={walletOpen} onClose={closeWallet} account={account} walletId={walletId} chainId={chainId}
         onConnected={onConnected} onChain={setChainId} onDisconnect={disconnect} />

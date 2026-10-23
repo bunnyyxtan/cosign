@@ -35,6 +35,10 @@ export type TxItem = {
   shown: boolean;
   /** When a resolved toast hides itself; undefined while it must stay. */
   hideAt?: number;
+  /** The user closed an unknown-outcome notice after checking the explorer: it no longer pauses new transactions. */
+  acked?: boolean;
+  /** Recovered after a reload from the saved hash, not sent in this page. */
+  restored?: boolean;
 };
 
 /** Unresolved: on screen until resolved, never dismissable, never auto-hidden. */
@@ -71,7 +75,8 @@ export function update(list: TxItem[], id: number, p: Partial<Omit<TxItem, "id" 
 }
 
 /** The user closed a toast. Unresolved transactions cannot be closed. */
-export const dismiss = (list: TxItem[], id: number) => list.map((t) => (t.id === id && !isOpen(t.state) ? { ...t, shown: false, hideAt: undefined } : t));
+export const dismiss = (list: TxItem[], id: number) =>
+  list.map((t) => (t.id === id && !isOpen(t.state) ? { ...t, shown: false, hideAt: undefined, acked: t.acked || t.state === "unknown" } : t));
 
 /** Hides toasts whose time is up. While `held` (pointer or focus on the toasts) nothing hides, and resolved toasts
  *  get at least `grace` ms after the hold ends. */
@@ -142,3 +147,58 @@ export function explain(e: unknown): { state: "rejected" | "failed"; text: strin
   if (/fetch failed|failed to fetch|network|timeout|HTTP request failed/i.test(every)) return { state: "failed", text: "Mezo testnet did not respond. Nothing was sent; try again in a moment.", detail: raw };
   return { state: "failed", text: "The wallet could not complete this request. Nothing was sent.", detail: raw || undefined };
 }
+
+// ---------------------------------------------------------------- recovery across reloads
+// Only what is needed to look a transaction up again: its hash (public onchain), a label, the chain, the time it was
+// sent, and a keccak tag of the sending account so another account never sees it. No address or amount is stored.
+
+export type Saved = { tx: Hex; label: string; chain: number; who: string; at: number };
+export const SAVE_KEY = "cosign:unresolved:v1";
+/** How long an unresolved hash is kept and re-checked. */
+export const KEEP_MS = 24 * 60 * 60 * 1000;
+
+/** Transactions with a hash whose outcome isn't known yet. Confirmed-but-unread ones are settled onchain, so not kept. */
+export const unresolved = (t: TxItem) => !!t.tx && (t.state === "pending" || t.state === "unknown");
+
+/** Merges this account's unresolved items into what is saved for others, dropping anything resolved or expired. */
+export function toSave(prev: Saved[], list: TxItem[], who: string, chain: number, now: number, tag: (a: string) => string): Saved[] {
+  const keep = prev.filter((x) => !(x.who === who && x.chain === chain) && now - x.at < KEEP_MS);
+  const mineNow = list
+    .filter((t) => tag(t.account) === who && unresolved(t) && now - t.at < KEEP_MS)
+    .map((t) => ({ tx: t.tx!, label: t.label, chain, who, at: t.at }));
+  return [...keep, ...mineNow];
+}
+
+/** Parses saved data defensively; anything malformed is ignored. */
+export function parseSaved(raw: string | null): Saved[] {
+  try {
+    const v = JSON.parse(raw ?? "[]");
+    if (!Array.isArray(v)) return [];
+    return v.filter((x) => x && /^0x[0-9a-fA-F]{64}$/.test(x.tx) && typeof x.label === "string" && Number.isInteger(x.chain) && typeof x.who === "string" && Number.isFinite(x.at))
+      .map((x) => ({ tx: x.tx, label: x.label.slice(0, 80), chain: x.chain, who: x.who, at: x.at }));
+  } catch {
+    return [];
+  }
+}
+
+/** What to restore for the account and chain now connected. */
+export const forAccount = (saved: Saved[], who: string, chain: number, now: number) =>
+  saved.filter((x) => x.who === who && x.chain === chain && now - x.at < KEEP_MS);
+
+/** A receipt lookup's result: a receipt, none yet, or the RPC could not answer. */
+export type Lookup = { status: "success" | "reverted"; block: bigint } | null | "error";
+
+/** Next state of an unresolved item after one receipt lookup. Never sends, retries or signs anything. */
+export function reconcile(t: TxItem, r: Lookup, now: number, waitMs = 3 * 60_000): Partial<TxItem> | null {
+  if (r === "error") return null; // a failed read says nothing about the transaction
+  if (r === null) {
+    if (t.state === "pending" && now - t.at >= waitMs)
+      return { state: "unknown", text: "Not confirmed yet. It may still go through: check the explorer before sending again. Close this notice to allow new transactions." };
+    return null;
+  }
+  if (r.status === "success") return { state: "done", text: `Confirmed in block ${r.block}`, block: r.block };
+  return { state: "failed", text: "Reverted onchain. Nothing changed except the network fee.", block: r.block };
+}
+
+/** Unresolved transactions that pause new sends until they resolve or the user closes the notice after checking. */
+export const blocking = (list: TxItem[], account: string | null) => mine(list, account).filter((t) => unresolved(t) && !t.acked);
