@@ -2,6 +2,12 @@
 
 _21 October 2026. Status: **waiting for founder and product-lead visual approval.** No further design work until the review is done._
 
+## Update, 23 October 2026
+
+- **Real-wallet acceptance with Rabby is under way and recorded in [`WALLET_ACCEPTANCE.md`](WALLET_ACCEPTANCE.md)**: connect, reload restore, cover and lender deposits, the full borrow lifecycle, senior withdrawals and a partial cover withdrawal are PASS. Journey 3 (veBTC voting and rewards) is planned, with its manifest in that file.
+- **App changes since the screenshots**: a wallet dialog with EIP-6963 selection, honest post-transaction sync and two-step approvals, real post-deposit lending room, a separate "your share of cover" figure, a partial cover-withdrawal form, and a Fund and distribute section on the Rewards page. The screenshots in `docs/screenshots/` predate them.
+- **Hosting and CI readiness** is in [`HOSTING_READINESS.md`](HOSTING_READINESS.md): both CI jobs reproduce from a clean clone; nothing is deployed or merged.
+
 ## Where things are
 
 - **Branch:** `feat/premium-site`, pushed to `origin`, seven commits on top of `main` (`7effae5`). Not merged, no PR, not deployed.
