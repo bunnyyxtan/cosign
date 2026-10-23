@@ -1,22 +1,25 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Address, Hex } from "viem";
 import {
-  addrUrl, authorizedAccount, client, connectWallet, disconnectWallet, ensureChain, erc20Abi, loadDeployment, loadLosses, loadMarkets,
+  authorizedAccount, client, connectWallet, disconnectWallet, ensureChain, erc20Abi, loadDeployment, loadLosses, loadMarkets,
   loadUser, mezoTestnet, selectProvider, setDisconnected, txUrl, walletChainId, walletClient, wasDisconnected,
   type Eip1193,
   type DemoRun, type Deployment, type GaugeState, type LossEvent, type MarketState, type UserState,
 } from "./chain";
 import type { Ctx, Next } from "./app/ctx";
+import { add, dismiss, explain, isOpen, mine, sweep, tone, toasts, update, type TxItem } from "./app/activity";
 import { ConnectModal } from "./app/Connect";
-import { Cosign, Rewards } from "./app/Cosign";
+import { Cosign } from "./app/Cosign";
+import { Rewards } from "./app/Rewards";
 import { Evidence } from "./app/Evidence";
 import { MarketDetail, Markets } from "./app/Markets";
-import { Positions } from "./app/Positions";
+import { Portfolio } from "./app/Portfolio";
+import { Sheet, useLeaving } from "./app/Modal";
 import { onWallets, savedWallet, saveWallet, wallets, type Wallet } from "./wallets";
 import { fmt, short, WAD } from "./app/ui";
-import { ArrowNE, Check, Close, Wordmark } from "./ui/Icon";
+import { Activity, ArrowNE, Check, Close, Info, NavCosign, NavMarkets, NavPortfolio, NavRewards, Wordmark } from "./ui/Icon";
 
-/** Poll for a receipt for up to 3 minutes; Mezo's load-balanced RPC can briefly miss a mined tx. */
+/** Poll for a receipt for up to 3 minutes; Mezo's load-balanced RPC can briefly miss a mined tx. Null = still unknown. */
 async function waitReceipt(hash: Hex) {
   for (let i = 0; i < 90; i++) {
     try {
@@ -25,49 +28,43 @@ async function waitReceipt(hash: Hex) {
       await new Promise((r) => setTimeout(r, 2000));
     }
   }
-  throw new Error("No receipt after 3 minutes. Check the transaction in the explorer.");
+  return null;
 }
 
-/** Plain-language reasons for the reverts a user can hit. Unknown errors fall back to the wallet's message. */
-const REASONS: Record<string, string> = {
-  CapacityExceeded: "There isn't that much room to lend. Room opens as co-signers add cover.",
-  Undercovered: "That withdrawal would leave lenders with less than the minimum cover.",
-  NotReady: "Your withdrawal notice period has not ended yet.",
-  RequestExpired: "Your withdrawal window closed. Request again.",
-  RequestVoid: "Your request was cancelled because this market's cover was wiped out.",
-  NoRequest: "Request a withdrawal first.",
-  InsufficientShares: "You don't hold that much here.",
-  VotesActive: "Remove your votes on this market before withdrawing all of your cover.",
-  NoCover: "Post cover on a market before voting for it.",
-  AlreadyVoted: "This veBTC position already voted this epoch.",
-  NotApproved: "This wallet doesn't own that veBTC position.",
-  NoPower: "This veBTC position has no voting power.",
-  ZeroAmount: "Enter a larger amount.",
-  EpochNotOver: "That epoch has not ended yet. It can be distributed once it is over.",
-  AlreadyDistributed: "That epoch was already distributed.",
-};
+export type Route =
+  | { page: "markets" }
+  | { page: "market"; vault: Address; tab: "lend" | "borrow" }
+  | { page: "cosign"; vault?: Address }
+  | { page: "rewards" }
+  | { page: "portfolio" }
+  | { page: "evidence" };
 
-function explain(e: unknown): string {
-  const err = e as { shortMessage?: string; message?: string; code?: number; cause?: { code?: number; data?: { errorName?: string } } };
-  const text = err.shortMessage ?? err.message ?? "Something went wrong";
-  if (err.code === 4001 || err.cause?.code === 4001 || /user rejected|denied/i.test(err.message ?? "")) return "You rejected the request in your wallet.";
-  const name = err.cause?.data?.errorName ?? Object.keys(REASONS).find((k) => text.includes(k));
-  if (name && REASONS[name]) return REASONS[name];
-  if (/insufficient collateral/i.test(err.message ?? "")) return "That would leave your loan under-collateralised. Repay first, or ask for less.";
-  if (/insufficient liquidity/i.test(err.message ?? "")) return "Not enough unborrowed MUSD in this market right now. Try a smaller amount.";
-  return text.split(/\r?\n/)[0];
-}
-
-type Route = { page: "markets" } | { page: "cosign" } | { page: "rewards" } | { page: "positions" } | { page: "evidence" } | { page: "market"; vault: Address };
-/** Wallet = waiting for the user to sign; chain = sent, waiting for a receipt; ok only after a successful receipt.
- *  syncing = confirmed, figures not yet re-read; next = the separate action an approval unlocks. */
-type Toast = { kind: "wallet" | "chain" | "ok" | "error"; label: string; text: string; tx?: Hex; block?: bigint; syncing?: boolean; next?: Next };
-
+/** Hash routes. Old links keep working: #/positions opens Portfolio. */
 function parseRoute(): Route {
-  const h = window.location.hash.replace(/^#\/?/, "");
-  if (h.startsWith("market/")) return { page: "market", vault: h.slice(7) as Address };
-  if (h === "cosign" || h === "rewards" || h === "positions" || h === "evidence") return { page: h };
+  const [p, a, b] = window.location.hash.replace(/^#\/?/, "").split("/");
+  if (p === "market" && a) return { page: "market", vault: a as Address, tab: b === "borrow" ? "borrow" : "lend" };
+  if (p === "cosign") return { page: "cosign", vault: (a || undefined) as Address | undefined };
+  if (p === "positions" || p === "portfolio") return { page: "portfolio" };
+  if (p === "rewards" || p === "evidence") return { page: p };
   return { page: "markets" };
+}
+
+const NAV = [
+  { page: "markets", href: "#/markets", label: "Markets", icon: NavMarkets },
+  { page: "cosign", href: "#/cosign", label: "Co-sign", icon: NavCosign },
+  { page: "rewards", href: "#/rewards", label: "Rewards", icon: NavRewards },
+  { page: "portfolio", href: "#/portfolio", label: "Portfolio", icon: NavPortfolio },
+] as const;
+
+function useOnline() {
+  const [on, setOn] = useState(() => navigator.onLine);
+  useEffect(() => {
+    const up = () => setOn(true), down = () => setOn(false);
+    window.addEventListener("online", up);
+    window.addEventListener("offline", down);
+    return () => { window.removeEventListener("online", up); window.removeEventListener("offline", down); };
+  }, []);
+  return on;
 }
 
 export default function App() {
@@ -81,13 +78,15 @@ export default function App() {
   const [lossesFailed, setLossesFailed] = useState(false);
   const [account, setAccount] = useState<Address | null>(null);
   const [user, setUser] = useState<UserState | null>(null);
-  const [toast, setToast] = useState<Toast | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [chainId, setChainId] = useState<number | null>(null);
   const [updated, setUpdated] = useState<Date | null>(null);
   const [busy, setBusy] = useState(false);
   const [syncing, setSyncing] = useState(false); // a confirmed transaction's figures are being re-read
   const [menu, setMenu] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [activity, setActivity] = useState<TxItem[]>([]);
+  const online = useOnline();
 
   useEffect(() => {
     const f = () => { setRoute(parseRoute()); setMenu(false); window.scrollTo({ top: 0 }); };
@@ -123,9 +122,9 @@ export default function App() {
       setLoadError(null);
       setUpdated(new Date());
       return true;
-    } catch (e) {
+    } catch {
       if (quiet) return false;
-      setLoadError(`Could not read Mezo testnet: ${(e as Error).message.split("\n")[0]}`);
+      setLoadError("Mezo testnet isn't responding");
       return false;
     }
   }, [d, account]);
@@ -226,33 +225,53 @@ export default function App() {
     setEth(undefined);
   };
 
+  // ---------------------------------------------------------------- transactions
+  const seq = useRef(0);
+  const flying = useRef(false);
+  const held = useRef(false);
+  const note = (id: number, p: Parameters<typeof update>[2]) => setActivity((l) => update(l, id, p, Date.now()));
+  useEffect(() => {
+    const t = setInterval(() => setActivity((l) => sweep(l, Date.now(), held.current)), 500);
+    return () => clearInterval(t);
+  }, []);
+
   const switchNetwork = async () => {
     try {
       await ensureChain();
       setChainId(await walletChainId());
     } catch (e) {
-      setToast({ kind: "error", label: "Switch network", text: explain(e) });
+      if (!account) return;
+      const x = explain(e);
+      const id = ++seq.current;
+      setActivity((l) => add(l, { id, account, label: "Switch network", state: "signing", text: "", at: Date.now() }));
+      note(id, { state: x.state, text: x.text, detail: x.detail });
     }
   };
 
-  /** Send a transaction, wait for it, and surface the explorer link. */
+  /** Send a transaction, track it to a receipt, then re-read figures at or after its block. */
   const send = useCallback(
-    async (label: string, write: (w: ReturnType<typeof walletClient>) => Promise<Hex>) => {
-      if (!account) return false;
+    async (label: string, write: (w: ReturnType<typeof walletClient>) => Promise<Hex>): Promise<number | false> => {
+      // One transaction at a time, enforced here rather than by disabled buttons alone.
+      if (!account || flying.current) return false;
+      flying.current = true;
       setBusy(true);
+      const id = ++seq.current;
+      setActivity((l) => add(l, { id, account, label, state: "signing", text: "Confirm in your wallet", at: Date.now() }));
       try {
         await ensureChain();
-        setToast({ kind: "wallet", label, text: "Confirm in your wallet" });
         const hash = await write(walletClient(account));
-        setToast({ kind: "chain", label, text: "Sent. Waiting for Mezo testnet to include it", tx: hash });
+        note(id, { state: "pending", text: "Sent. Waiting for Mezo testnet", tx: hash });
         const r = await waitReceipt(hash);
-        if (r.status !== "success") {
-          setToast({ kind: "error", label, text: "The transaction was mined but reverted. Nothing changed.", tx: hash });
+        if (!r) {
+          note(id, { state: "unknown", text: "Not confirmed after 3 minutes. It may still go through: check the explorer before sending again." });
           return false;
         }
-        const done = `Confirmed in block ${r.blockNumber.toString()}`;
-        setToast({ kind: "ok", label, text: "Confirmed onchain · updating balances…", tx: hash, block: r.blockNumber, syncing: true });
+        if (r.status !== "success") {
+          note(id, { state: "failed", text: "Reverted onchain. Nothing changed except the network fee.", block: r.blockNumber });
+          return false;
+        }
         if (r.blockNumber > floor.current) floor.current = r.blockNumber;
+        note(id, { state: "syncing", text: "Confirmed. Updating balances", block: r.blockNumber });
         // Re-read until a node that has this block answers. A failed read is not a failed transaction, and the
         // buttons stay locked meanwhile so stale figures never invite a second send.
         setSyncing(true);
@@ -262,13 +281,17 @@ export default function App() {
           if (!fresh) await new Promise((res) => setTimeout(res, 1500));
         }
         setSyncing(false);
-        setToast((t) => (t?.tx === hash ? { ...t, syncing: false, text: fresh ? `${done} · balances updated` : `${done}. Balances could not be re-read yet; Cosign keeps trying every 15 seconds. Do not send it again.` } : t));
+        note(id, fresh
+          ? { state: "done", text: `Confirmed in block ${r.blockNumber}` }
+          : { state: "unsynced", text: `Confirmed in block ${r.blockNumber}. Balances haven't refreshed yet; Cosign keeps trying. Don't send it again.` });
         if (d) loadLosses(d).then(setLosses).catch(() => setLossesFailed(true));
-        return true;
+        return id;
       } catch (e) {
-        setToast({ kind: "error", label, text: explain(e) });
+        const x = explain(e);
+        note(id, { state: x.state, text: x.text, detail: x.detail });
         return false;
       } finally {
+        flying.current = false;
         setBusy(false);
       }
     },
@@ -278,134 +301,131 @@ export default function App() {
   /** Approve `spender` for `amount` of `token` if the current allowance is short. */
   const approveIfNeeded = useCallback(
     async (token: Address, spender: Address, amount: bigint, label: string, next: Next) => {
-      if (!account) return false;
+      if (!account || flying.current) return false;
       const allowance = await client.readContract({ address: token, abi: erc20Abi, functionName: "allowance", args: [account, spender] }).catch(() => null);
       if (allowance === null) {
-        setToast({ kind: "error", label: `Approve ${label}`, text: "Could not read your current allowance from Mezo testnet. Nothing was sent; try again in a moment." });
+        const id = ++seq.current;
+        setActivity((l) => add(l, { id, account, label: `Approve ${label}`, state: "signing", text: "", at: Date.now() }));
+        note(id, { state: "failed", text: "Couldn't read your current allowance from Mezo testnet. Nothing was sent; try again in a moment." });
         return false;
       }
       if (allowance >= amount) return true;
-      const ok = await send(`Approve ${label}`, (w) => w.writeContract({ address: token, abi: erc20Abi, functionName: "approve", args: [spender, amount] }));
-      if (!ok) return false;
+      const id = await send(`Approve ${label}`, (w) => w.writeContract({ address: token, abi: erc20Abi, functionName: "approve", args: [spender, amount] }));
+      if (!id) return false;
       // Wallets let users edit the spending cap; check what was actually approved, at or after the approval's block.
       let now: bigint | null = null;
       for (let i = 0; i < 5 && now === null; i++) {
         now = await client.readContract({ address: token, abi: erc20Abi, functionName: "allowance", args: [account, spender], blockNumber: floor.current }).catch(() => null);
         if (now === null) await new Promise((res) => setTimeout(res, 1500));
       }
-      if (now === null) {
-        setToast((t) => (t ? { ...t, syncing: false, text: "Approval confirmed, but the allowance could not be re-read yet. Wait a moment, then press the button again; you will not be asked to approve twice if it went through." } : t));
-      } else if (now < amount) {
-        setToast({ kind: "error", label: `Approve ${label}`, text: `The approved amount is lower than ${fmt(amount)}. Approve at least that much.` });
-      } else {
-        // Two deliberate steps: the action is offered as its own button, never chained onto the approval.
-        setToast((t) => (t ? { ...t, syncing: false, text: `Allowance approved — ready to ${next.ready}`, next } : t));
-      }
+      if (now === null) note(id, { state: "unsynced", text: "Approval confirmed, but the allowance couldn't be re-read yet. Press the button again in a moment; you won't be asked to approve twice if it went through." });
+      else if (now < amount) note(id, { state: "failed", text: `The approved amount is lower than ${fmt(amount)} ${label}. Approve at least that much.` });
+      // Two deliberate steps: the action stays in the form, and is offered here too; it never starts by itself.
+      else note(id, { state: "approved", text: `${label} approved. Next: ${next.ready}.`, next });
       return false;
     },
     [account, send],
   );
 
-  const ctx: Ctx = { d: d!, markets, gauge, price, user, account, send, approveIfNeeded, connect, losses, lossesFailed, demo, busy };
-  const wrongChain = account && chainId !== null && chainId !== mezoTestnet.id;
-  const isOn = (p: Route["page"], vault?: string) =>
-    route.page === p && (!vault || (route.page === "market" && route.vault.toLowerCase() === vault.toLowerCase())) ? "page" : undefined;
-  const title = route.page === "market" ? markets.find((m) => m.vault.toLowerCase() === route.vault.toLowerCase())?.name ?? "Market" : { markets: "Markets", cosign: "Co-sign", rewards: "Rewards", positions: "Positions", evidence: "Evidence" }[route.page];
+  const mineAll = mine(activity, account);
+  const ctx: Ctx = { d: d!, markets, gauge, price, user, account, send, approveIfNeeded, connect, about: () => setAboutOpen(true), losses, lossesFailed, demo, busy, activity: mineAll };
+  const wrongChain = !!account && chainId !== null && chainId !== mezoTestnet.id;
+  const section = route.page === "market" || route.page === "evidence" ? "markets" : route.page;
+  const marketName = route.page === "market" ? markets.find((m) => m.vault.toLowerCase() === route.vault.toLowerCase())?.name ?? "Market" : "";
+  const pageName = { markets: "Markets", market: marketName, cosign: "Co-sign", rewards: "Rewards", portfolio: "Portfolio", evidence: "Recorded evidence" }[route.page];
+  const nested = route.page === "market" || route.page === "evidence";
 
   return (
     <div className={`app ${menu ? "menu-open" : ""}`}>
       <a className="skip" href="#app-main">Skip to content</a>
-      <aside className="side" aria-label="Workspace">
+      <aside className="side" aria-label="Cosign app">
         <div className="side-top">
-          <Wordmark href="../" label="Cosign website" />
+          <Wordmark href="#/markets" label="Cosign: markets" />
           <button className="icon-btn side-close" onClick={() => setMenu(false)} aria-label="Close menu"><Close /></button>
         </div>
-        <nav className="side-nav">
-          <span className="side-k">Workspace</span>
-          <a href="#/markets" aria-current={isOn("markets")}>Markets</a>
-          {markets.map((m) => <a key={m.vault} className="sub" href={`#/market/${m.vault}`} aria-current={isOn("market", m.vault)}>{m.name}</a>)}
-          <a href="#/cosign" aria-current={isOn("cosign")}>Co-sign</a>
-          <a href="#/rewards" aria-current={isOn("rewards")}>Rewards</a>
-          <a href="#/positions" aria-current={isOn("positions")}>Positions</a>
-          <span className="side-k">Proof</span>
-          <a href="#/evidence" aria-current={isOn("evidence")}>Recorded evidence</a>
-          <a href="../">Website</a>
+        <nav className="side-nav" aria-label="Main">
+          {NAV.map(({ page, href, label, icon: I }) => (
+            <a key={page} href={href} aria-current={section === page ? "page" : undefined}><I size={18} />{label}</a>
+          ))}
         </nav>
-        <div className="side-foot">
-          <span className={`netdot ${loadError ? "is-bad" : updated ? "is-ok" : ""}`} />
-          <div>
-            <b>Mezo testnet · 31611</b>
-            <span>{loadError ? "Not reachable" : updated ? `Live · read ${updated.toLocaleTimeString()}` : "Connecting…"}</span>
-            {price > 0n && <span>MEZO {fmt(price / WAD, 2)} MUSD · demo oracle</span>}
-          </div>
-        </div>
+        <button className="side-env" onClick={() => setAboutOpen(true)}>
+          <span className={`netdot ${!online || loadError ? "is-bad" : updated ? "is-ok" : ""}`} aria-hidden="true" />
+          <span><b>Mezo Testnet</b><small>Unaudited · risks</small></span>
+          <Info size={16} />
+        </button>
       </aside>
       <div className="scrim" onClick={() => setMenu(false)} aria-hidden="true" />
 
       <div className="main">
         <header className="topbar">
-          <button className="icon-btn menu-toggle" onClick={() => setMenu(true)} aria-label="Open menu"><span /><span /></button>
-          <span className="topbar-title">{title}</span>
-          <div className="topbar-right">
-            <span className="chip chip-plain topbar-net">Testnet prototype</span>
-            {account ? (
-              <div className="acct">
-                <button className="acct-addr num" onClick={connect} aria-haspopup="dialog" aria-label={`Wallet ${short(account)}: details`}>
-                  {current?.icon ? <img src={current.icon} width={18} height={18} alt="" /> : <i />}{short(account)}
+          <div className="bar-in topbar-in">
+            <button className="icon-btn menu-toggle" onClick={() => setMenu(true)} aria-label="Open menu"><span /><span /></button>
+            {nested ? (
+              <nav className="crumb" aria-label="Breadcrumb"><a href="#/markets">Markets</a><span aria-hidden="true">/</span><span aria-current="page">{pageName}</span></nav>
+            ) : <span className="topbar-title">{pageName}</span>}
+            <div className="topbar-right">
+              <NetStatus online={online} loadError={!!loadError} live={!!updated} wrongChain={wrongChain} onSwitch={switchNetwork} onOpen={() => setAboutOpen(true)} />
+              {account && mineAll.length > 0 && <ActivityMenu items={mineAll} />}
+              {account ? (
+                <button className="acct" onClick={connect} aria-haspopup="dialog" aria-label={`Account ${short(account)}: copy, explorer, disconnect`}>
+                  {current?.icon ? <img src={current.icon} width={20} height={20} alt="" /> : <i aria-hidden="true" />}
+                  <span className="num acct-long">{short(account)}</span><span className="num acct-short">{account.slice(0, 4)}…{account.slice(-4)}</span>
                 </button>
-                <button className="btn btn-ghost btn-sm" onClick={disconnect}>Disconnect</button>
-              </div>
-            ) : restoring ? (
-              <button className="btn btn-ghost btn-sm" disabled aria-busy="true"><span className="spin" />Reconnecting</button>
-            ) : (
-              <button className="btn btn-dark btn-sm" onClick={connect} aria-haspopup="dialog">Connect wallet</button>
-            )}
+              ) : restoring ? (
+                <button className="btn btn-ghost btn-sm" disabled aria-busy="true"><span className="spin" />Reconnecting</button>
+              ) : (
+                <button className="btn btn-dark btn-sm" onClick={connect} aria-haspopup="dialog">Connect wallet</button>
+              )}
+            </div>
           </div>
         </header>
 
-        {wrongChain && (
-          <div className="banner is-loss" role="alert">
-            <span>Your wallet is on another network. Cosign runs on Mezo testnet.</span>
-            <button className="btn btn-dark btn-sm" onClick={switchNetwork}>Switch to Mezo testnet</button>
-          </div>
-        )}
-        {syncing && (
-          <div className="banner is-pending" role="status">
-            <span><span className="spin" aria-hidden="true" />Your transaction is confirmed onchain. The figures below are from before it and are being updated.</span>
-          </div>
-        )}
-        {loadError && (
-          <div className="banner is-loss" role="alert">
-            <span>{loadError}. Figures below may be out of date.</span>
-            <button className="btn btn-ghost btn-sm" onClick={() => refresh()}>Try again</button>
+        {(wrongChain || syncing || loadError || !online) && (
+          <div className="bar-in banners">
+            {wrongChain && (
+              <div className="banner is-loss" role="alert">
+                <span>Your wallet is on another network. Cosign runs on Mezo Testnet.</span>
+                <button className="btn btn-dark btn-sm" onClick={switchNetwork}>Switch network</button>
+              </div>
+            )}
+            {!online && <div className="banner is-loss" role="alert"><span>You're offline. Figures below are from your last connection; nothing can be sent.</span></div>}
+            {online && loadError && (
+              <div className="banner is-loss" role="alert">
+                <span>{loadError}. Figures below may be out of date.</span>
+                <button className="btn btn-ghost btn-sm" onClick={() => refresh()}>Try again</button>
+              </div>
+            )}
+            {syncing && (
+              <div className="banner is-pending" role="status">
+                <span><span className="spin" aria-hidden="true" />Confirmed onchain. Updating the figures below.</span>
+              </div>
+            )}
           </div>
         )}
 
-        <main id="app-main" className="content">
+        <main id="app-main" className="bar-in content">
           {d === undefined && <Loading text="Loading the deployment…" />}
           {d === null && (
             <div className="empty card card-white">
               <h1 className="page-title">Not deployed</h1>
-              <p>This build has no Cosign deployment for Mezo testnet. Run the deploy script, then reload.</p>
+              <p>This build has no Cosign deployment for Mezo testnet.</p>
             </div>
           )}
           {d && route.page === "evidence" && <Evidence {...ctx} />}
-          {d && route.page !== "evidence" && markets.length === 0 && !loadError && <Loading text="Reading the markets from Mezo testnet…" />}
+          {d && route.page !== "evidence" && markets.length === 0 && !loadError && <Loading text="Reading markets from Mezo testnet…" />}
           {d && markets.length > 0 && route.page === "markets" && <Markets {...ctx} />}
-          {d && markets.length > 0 && route.page === "market" && <MarketDetail {...ctx} vault={route.vault} />}
-          {d && markets.length > 0 && route.page === "cosign" && <Cosign {...ctx} />}
+          {d && markets.length > 0 && route.page === "market" && <MarketDetail key={route.vault + route.tab} {...ctx} vault={route.vault} tab={route.tab} />}
+          {d && markets.length > 0 && route.page === "cosign" && <Cosign {...ctx} vault={route.vault} />}
           {d && markets.length > 0 && route.page === "rewards" && <Rewards {...ctx} />}
-          {d && markets.length > 0 && route.page === "positions" && <Positions {...ctx} />}
+          {d && markets.length > 0 && route.page === "portfolio" && <Portfolio {...ctx} />}
         </main>
-
-        <footer className="app-foot">
-          <p><b>Unaudited prototype on Mezo testnet.</b> Cover is first-loss capital, not a guarantee: lenders lose money if losses exceed it. MEZO rewards are funded by the Cosign team, not by Mezo protocol emissions. The MEZO price comes from a demo oracle the Cosign team controls.</p>
-        </footer>
       </div>
 
-      {toast && <TxTray toast={toast} busy={busy} onClose={() => setToast(null)} />}
+      <Toasts items={toasts(activity, account)} busy={busy} onClose={(id) => setActivity((l) => dismiss(l, id))}
+        onHold={(h) => { held.current = h; }} />
       <ConnectModal open={walletOpen} onClose={closeWallet} account={account} walletId={walletId} chainId={chainId}
         onConnected={onConnected} onChain={setChainId} onDisconnect={disconnect} />
+      <About open={aboutOpen} onClose={() => setAboutOpen(false)} online={online} loadError={loadError} updated={updated} price={price} />
     </div>
   );
 }
@@ -419,30 +439,130 @@ function Loading({ text }: { text: string }) {
   );
 }
 
-/** One transaction's state. It reads "Confirmed" only after a successful receipt; pending states cannot be dismissed. */
-function TxTray({ toast, busy, onClose }: { toast: Toast; busy: boolean; onClose: () => void }) {
-  // Confirmed is a fact once the receipt says so; the re-read after it is shown separately and cannot be dismissed.
-  const signing = toast.kind === "wallet" || toast.kind === "chain";
-  const pending = signing || !!toast.syncing;
-  const cur = { wallet: 0, chain: 1, ok: 3, error: -1 }[toast.kind];
-  const cls = (i: number) => (i < cur ? "done" : i === cur ? "on" : "");
+/** A compact, truthful network indicator. It opens the testnet and risk details. */
+function NetStatus({ online, loadError, live, wrongChain, onSwitch, onOpen }: {
+  online: boolean; loadError: boolean; live: boolean; wrongChain: boolean; onSwitch: () => void; onOpen: () => void;
+}) {
+  if (wrongChain) return <button className="net is-bad" onClick={onSwitch}><i aria-hidden="true" />Wrong network<span className="net-x">: switch</span></button>;
+  const [cls, text] = !online ? ["is-bad", "Offline"] : loadError ? ["is-bad", "Testnet unreachable"] : live ? ["is-ok", "Mezo Testnet"] : ["", "Connecting"];
+  return <button className={`net ${cls}`} onClick={onOpen} aria-label={`${text}. Network and risk details`}><i aria-hidden="true" /><span className="net-t">{text}</span></button>;
+}
+
+const STATE_WORD: Record<TxItem["state"], string> = {
+  signing: "Waiting for signature", pending: "Pending", syncing: "Confirmed · updating", done: "Confirmed", approved: "Approved",
+  unsynced: "Confirmed", unknown: "Not confirmed yet", rejected: "Declined", failed: "Failed",
+};
+
+/** This session's transactions, so a toast hiding itself never loses the record. In memory only. */
+function ActivityMenu({ items }: { items: TxItem[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const live = items.filter((t) => isOpen(t.state)).length;
+  useEffect(() => {
+    if (!open) return;
+    const off = (e: Event) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("pointerdown", off);
+    return () => document.removeEventListener("pointerdown", off);
+  }, [open]);
   return (
-    <div className={`tray is-${toast.kind}`} role={toast.kind === "error" ? "alert" : "status"} aria-live="polite">
-      <div className="tray-icon" aria-hidden="true">{signing ? <span className="spin" /> : toast.kind === "ok" ? <Check /> : <Close />}</div>
-      <div className="tray-body">
-        <b>{toast.label}</b>
-        <span className={toast.syncing ? "tray-sync" : undefined}>{toast.syncing && <span className="spin" aria-hidden="true" />}{toast.text}</span>
-        {toast.kind !== "error" && (
-          <ol className="tray-steps" aria-hidden="true">
-            <li className={cls(0)}>Sign</li><li className={cls(1)}>Mining</li><li className={cls(2)}>Confirmed</li>
-          </ol>
-        )}
-        {toast.tx && <a className="link" href={txUrl(toast.tx)} target="_blank" rel="noreferrer">View transaction <ArrowNE size={12} /></a>}
-        {toast.next && !toast.syncing && (
-          <button className="btn btn-dark btn-sm tray-next" disabled={busy} onClick={() => { const n = toast.next!; onClose(); n.run(); }}>{toast.next.label}</button>
+    <div className="actv" ref={ref} onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}>
+      <button className="icon-btn actv-btn" onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="true"
+        aria-label={live ? `Activity: ${live} in progress` : "Activity this session"}>
+        {live ? <span className="spin" aria-hidden="true" /> : <Activity size={18} />}
+      </button>
+      {open && (
+        <div className="actv-pop" role="region" aria-label="Activity this session">
+          <div className="actv-head"><b>Activity</b><span>This session</span></div>
+          <ul>
+            {items.map((t) => (
+              <li key={t.id} className={`is-${tone(t.state)}`}>
+                <i aria-hidden="true" />
+                <span><b>{t.label}</b><small>{STATE_WORD[t.state]} · {new Date(t.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small></span>
+                {t.tx && <a className="icon-btn" href={txUrl(t.tx)} target="_blank" rel="noreferrer" aria-label={`${t.label}: view in explorer`}><ArrowNE /></a>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Transaction notices. Unresolved ones stay; successes leave by themselves; failures wait to be closed. */
+function Toasts({ items, busy, onClose, onHold }: { items: TxItem[]; busy: boolean; onClose: (id: number) => void; onHold: (h: boolean) => void }) {
+  // A toast that leaves stays for one short exit animation.
+  const [leaving, setLeaving] = useState<TxItem[]>([]);
+  const prev = useRef<TxItem[]>([]);
+  const ids = items.map((t) => t.id).join();
+  useEffect(() => {
+    const gone = prev.current.filter((p) => !items.some((i) => i.id === p.id));
+    prev.current = items;
+    if (!gone.length) return;
+    setLeaving((l) => [...l, ...gone]);
+    setTimeout(() => setLeaving((l) => l.filter((x) => !gone.some((g) => g.id === x.id))), 220);
+  }, [ids]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = items.slice(0, 3);
+  // The container unmounts with its last toast, so no mouseleave or blur arrives: release the hold here.
+  useEffect(() => { if (!shown.length) onHold(false); }, [shown.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!shown.length && !leaving.length) return null;
+  return (
+    <div className="toasts" aria-live="polite" onMouseEnter={() => onHold(true)} onMouseLeave={() => onHold(false)}
+      onFocus={() => onHold(true)} onBlur={() => onHold(false)}>
+      {shown.map((t) => <Toast key={t.id} t={t} busy={busy} onClose={() => onClose(t.id)} />)}
+      {leaving.filter((t) => !shown.some((s) => s.id === t.id)).map((t) => <Toast key={`x${t.id}`} t={t} busy leaving onClose={() => {}} />)}
+    </div>
+  );
+}
+
+function Toast({ t, busy, onClose, leaving = false }: { t: TxItem; busy: boolean; onClose: () => void; leaving?: boolean }) {
+  const open = isOpen(t.state);
+  const k = tone(t.state);
+  return (
+    <div className={`toast is-${k}${leaving ? " is-leaving" : ""}`} role={t.state === "failed" ? "alert" : "status"} aria-hidden={leaving || undefined}>
+      <span className="toast-icon" aria-hidden="true">{open ? <span className="spin" /> : k === "ok" ? <Check size={14} /> : k === "pending" ? "!" : <Close size={14} />}</span>
+      <div className="toast-body">
+        <b>{t.label}</b>
+        <span>{t.text}</span>
+        {(t.tx || t.next || t.detail) && (
+          <div className="toast-actions">
+            {t.next && <button className="btn btn-dark btn-sm" disabled={busy} onClick={() => { const n = t.next!; onClose(); n.run(); }}>{t.next.label}</button>}
+            {t.tx && <a className="link" href={txUrl(t.tx)} target="_blank" rel="noreferrer">Explorer <ArrowNE size={12} /></a>}
+            {t.detail && <details className="toast-detail"><summary>Details</summary><code>{t.detail}</code></details>}
+          </div>
         )}
       </div>
-      {!pending && <button className="icon-btn" onClick={onClose} aria-label="Dismiss"><Close /></button>}
+      {!open && <button className="icon-btn toast-x" onClick={onClose} aria-label="Dismiss"><Close size={14} /></button>}
     </div>
+  );
+}
+
+/** Testnet, network and risk details: one quiet place instead of a footer on every page. */
+function About({ open, onClose, online, loadError, updated, price }: {
+  open: boolean; onClose: () => void; online: boolean; loadError: string | null; updated: Date | null; price: bigint;
+}) {
+  const { shown, leaving } = useLeaving(open);
+  if (!shown) return null;
+  return (
+    <Sheet title="Mezo Testnet prototype" onClose={onClose} leaving={leaving} describedBy="about-desc" size="md">
+      <p id="about-desc" className="wm-lede">Cosign is an unaudited prototype. It runs on Mezo Testnet only; testnet tokens have no value. Don't use it with real funds.</p>
+      <dl className="wm-facts">
+        <div><dt>Network</dt><dd>Mezo Testnet · chain 31611</dd></div>
+        <div><dt>Data</dt><dd>{!online ? "Offline" : loadError ? "Not reachable" : updated ? `Live · read ${updated.toLocaleTimeString()}` : "Connecting…"}</dd></div>
+        {price > 0n && <div><dt>MEZO price</dt><dd className="num">{fmt(price / WAD, 2)} MUSD · demo oracle</dd></div>}
+      </dl>
+      <h3 className="wm-sub">Risks</h3>
+      <ul className="wm-risks">
+        <li><b>Cover is first-loss.</b> It pays for bad debt before lenders and can be lost in full.</li>
+        <li><b>Lenders can lose money</b> when a loss is larger than the cover in front of them.</li>
+        <li><b>Borrowers can be liquidated</b> when their loan-to-value reaches the market's limit.</li>
+        <li><b>The MEZO price is a demo oracle</b> the Cosign team controls; it is not a market price.</li>
+        <li><b>MEZO rewards are funded by participants</b> through the gauge. They aren't protocol emissions and aren't guaranteed.</li>
+      </ul>
+      <div className="wm-links">
+        <a className="link" href="#/evidence" onClick={onClose}>Recorded evidence</a>
+        <a className="link" href="https://github.com/bunnyyxtan/cosign/blob/main/docs/PRODUCT.md" target="_blank" rel="noreferrer">How Cosign works <ArrowNE size={12} /></a>
+        <a className="link" href="../">Website</a>
+      </div>
+    </Sheet>
   );
 }

@@ -4,7 +4,7 @@ import { Replay } from "../site/Replay";
 import { EVIDENCE } from "../site/recorded";
 import { ArrowNE } from "../ui/Icon";
 import type { Ctx } from "./ctx";
-import { short } from "./ui";
+import { PageHead, short } from "./ui";
 
 export function Evidence({ d, demo }: Ctx) {
   const [all, setAll] = useState(false);
@@ -19,14 +19,9 @@ export function Evidence({ d, demo }: Ctx) {
 
   return (
     <>
-      <header className="page-head">
-        <div>
-          <span className="eyebrow">Workspace / Evidence</span>
-          <h1 className="page-title">Recorded evidence</h1>
-          <p className="page-lede">What the demo run did on Mezo testnet, step by step. Everything on this page is historical; live market state is under Markets.</p>
-        </div>
+      <PageHead title="Recorded evidence" lede="What the recorded demo run did on Mezo testnet. Historical, not live market state.">
         <a className="link" href={EVIDENCE} target="_blank" rel="noreferrer">Full evidence document <ArrowNE size={14} /></a>
-      </header>
+      </PageHead>
 
       <Replay />
 
@@ -36,7 +31,7 @@ export function Evidence({ d, demo }: Ctx) {
             <h2 id="chk-h" className="panel-title">Checks recorded during the run</h2>
             <span className="chip chip-recorded">{checks.filter((c) => c.pass).length} / {checks.length} passed</span>
           </div>
-          <p className="action-lede">Each check read live contract state at the block shown. The failures are kept, with what was wrong.</p>
+          <p className="t-small">Each check read contract state at the block shown. Failures are kept, with what was wrong.</p>
           {failed.length > 0 && (
             <ul className="checks">
               {failed.map((c, i) => (

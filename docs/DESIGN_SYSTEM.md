@@ -31,7 +31,8 @@ Chosen after rendering the same Cosign section in Inter Tight, Geist, and Manrop
 - Card gap `--gap`: 12 → 20 px. Chapter rhythm `--section`: 80 → 168 px.
 - Spacing scale (4-based): 4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 80, 96, 128.
 - Landing compositions: 7/5 and 5/7 asymmetric splits; the roles chapter is 7/5 with a full-width third card.
-- App: 248 px sidebar, content up to 1,240 px; market detail is a fluid main column with a 360 px action column (stacks below 1,180 px).
+- App: 232 px sidebar (Markets, Co-sign, Rewards, Portfolio); one workspace column up to 1,600 px with a 16–40 px gutter, shared by the top bar, banners and content, centred with even margins on wider screens.
+- App pages: data on a fluid main column, actions in a sticky column of 340–440 px (`.split`); it stacks, action first, when the workspace is under 820 px wide. Layouts respond to the workspace width with container queries, not the window, so the sidebar never squeezes them. Markets is a two-up card grid; Portfolio is a table that becomes cards under 760 px.
 
 ## Radii, borders, elevation
 
@@ -48,6 +49,8 @@ Radii 8 (chips, swatches), 12 (inner blocks), 16 (app panels, fields), 22 (cards
 | Icon / circle link | 40–44 px | |
 
 Variants: dark (primary), light (secondary), white (on imagery), ghost (tertiary). Hover deepens the fill and nudges the arrow; press scales to 0.98; disabled is 42% opacity and is always explained by nearby text (for example "Deposits are closed: the market is under-covered"). Focus is a 2 px `--focus` outline offset 3 px.
+
+App-specific: a two-step indicator (`TwoStep`) above any action that needs an ERC-20 approval; segmented tabs for Lend/Borrow and Add cover/Withdraw; compact pill tabs for the four borrow actions; label/value rows (`Row`) for positions; risk notes as one muted line next to the action that creates the exposure, with longer explanations in closed disclosures.
 
 ## Colour roles
 
@@ -77,7 +80,7 @@ Transform and opacity only, `cubic-bezier(.16, 1, .3, 1)`.
 - **Hero:** the copy enters in sequence, and the panorama fades up.
 - **Parallax:** the hero and closing bands drift downward at 0.10–0.12 of scroll, only ever downward so no edge is exposed. Disabled for touch and for reduced motion.
 - **Replay:** figures tween over 900 ms, and segments slide on one fixed 1,400 MUSD scale. Autoplay is 2.6 s per step and stops at the end. Keyboard arrows move between steps.
-- **Transactions:** the tray steps from Sign, to Mining, to Confirmed. Confirmed appears only after a successful receipt; pending states cannot be dismissed. All action buttons are disabled while a transaction is in flight.
+- **Transactions:** notices sit at the bottom left of the workspace (bottom of the screen on phones), away from the action column. Signing, pending and confirmed-but-updating notices stay and cannot be closed; "Confirmed" appears only after a successful receipt and a re-read of the figures. A success or an approval hides itself after 6 s, a declined request after 8 s; failures, unconfirmed and not-yet-re-read notices stay until closed. Hover or focus holds them. Every notice stays in the session's Activity list. One transaction at a time, enforced in code as well as by disabled buttons. Approvals never start the next step: the form reads the live allowance and offers it as its own button. Rules are checked by `web/scripts/check-activity.ts`.
 - **Reduced motion:**
   - Reveals and parallax are skipped.
   - Tweens jump to the end value.

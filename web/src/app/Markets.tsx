@@ -4,8 +4,10 @@ import { addrUrl, client, morphoAbi, txUrl, vaultAbi, type LossEvent, type Marke
 import { ArrowE, ArrowNE } from "../ui/Icon";
 import { Art } from "../ui/Art";
 import type { Ctx } from "./ctx";
-import { Amount, aprs, apr, coverShortfall, Figure, fmt, marketKey, minCoverBps, pct, pctTrim, Stack, toWei, up2, WAD } from "./ui";
-
+import {
+  allowanceOf, Amount, aprs, apr, collateralValue, coverShortfall, debtOf, Figure, fmt, ltvBps, marketKey, minCoverBps, PageHead, pct, pctTrim,
+  Row, Stack, toWei, TwoStep, up2, WAD,
+} from "./ui";
 
 export function MarketStatus({ m }: { m: MarketState }) {
   if (m.undercovered) return <span className="chip chip-loss">Under-covered</span>;
@@ -13,138 +15,136 @@ export function MarketStatus({ m }: { m: MarketState }) {
   return <span className="chip chip-live">Open to lenders</span>;
 }
 
+const lltvText = (m: MarketState) => pctTrim((m.lltv * 10_000n) / WAD);
+const borrowedText = (m: MarketState) => `${(aprs(m).util * 100).toFixed(0)}% of supply`;
+
 // ================================================================ overview
 
-export function Markets({ markets, gauge, price, losses, lossesFailed }: Ctx) {
+export function Markets({ markets, gauge, losses, lossesFailed, user }: Ctx) {
   return (
     <>
-      <header className="page-head">
-        <div>
-          <span className="eyebrow">Workspace / Markets</span>
-          <h1 className="page-title">Markets</h1>
-          <p className="page-lede">Each market is a Cosign vault in front of a Morpho Blue market. Cover pays first; lenders pay only for a loss larger than the cover.</p>
-        </div>
+      <PageHead title="Markets" lede="Cover pays first. Lenders lose money only when a loss is larger than the cover in front of them.">
         <ul className="legend-row" aria-label="Legend">
-          <li><i className="sw sw-cover" />Cover, pays first</li>
-          <li><i className="sw sw-senior" />Lender deposits</li>
-          <li><i className="sw sw-room" />Room to lend</li>
+          <li><i className="sw sw-cover" />Cover</li>
+          <li><i className="sw sw-senior" />Lenders</li>
+          <li><i className="sw sw-room" />Available to lend</li>
           <li><i className="sw-min" />Minimum cover</li>
         </ul>
-      </header>
+      </PageHead>
 
       <div className="mk-grid">
         {markets.map((m) => {
           const a = aprs(m);
           const share = gauge && gauge.totalWeight > 0n ? Number((m.weight * 10_000n) / gauge.totalWeight) : 0;
-          // losses arrive newest first
-          const loss = losses?.find((l) => l.vault.toLowerCase() === m.vault.toLowerCase());
-          const short = coverShortfall(m);
+          const loss = losses?.find((l) => l.vault.toLowerCase() === m.vault.toLowerCase()); // newest first
+          const me = user?.perVault[m.vault];
+          const debt = me ? debtOf(me.borrowShares, m) : 0n;
+          const has = !!me && (me.senior > 0n || me.junior > 0n || me.collateral > 0n || debt > 0n);
           return (
             <article className="mk card card-white" key={m.vault}>
               <div className="mk-head">
                 <div className="mk-art"><Art slot={marketKey(m)} /></div>
                 <div className="mk-title">
                   <h2><a href={`#/market/${m.vault}`}>{m.name}</a></h2>
-                  <p>Up to {pctTrim((m.lltv * 10_000n) / WAD)} loan-to-value · lenders up to {m.maxLeverage.toString()}× cover</p>
+                  <p>Liquidation at {lltvText(m)} LTV · lenders up to {m.maxLeverage.toString()}× cover</p>
                 </div>
                 <MarketStatus m={m} />
               </div>
 
-              <Stack m={m} />
+              <Stack m={m} compact />
 
-              <dl className="mk-figs">
-                <Figure k="Cover" v={fmt(m.junior)} unit="MUSD" sub={`${pct(m.coverageBps)} of the vault · minimum ${pct(minCoverBps(m), 0)}`} tone="cover" />
+              <dl className="figs figs-3">
+                <Figure k="Market cover" v={fmt(m.junior)} unit="MUSD" sub={`${pct(m.coverageBps)} · minimum ${pct(minCoverBps(m), 0)}`} tone="cover" />
                 <Figure k="Lender deposits" v={fmt(m.senior)} unit="MUSD" />
-                <Figure k="Room to lend" v={fmt(m.capacity)} unit="MUSD" />
-                <Figure k="Lender APR" v={apr(a.senior)} sub={`${(a.util * 100).toFixed(0)}% borrowed`} />
+                <Figure k="Available to lend" v={fmt(m.capacity)} unit="MUSD" />
+                <Figure k="Borrowed" v={fmt(m.totalBorrow)} unit="MUSD" sub={borrowedText(m)} />
+                <Figure k="Lender APR" v={apr(a.senior)} sub="variable" />
                 <Figure k="Co-signer APR" v={apr(a.junior)} sub="before MEZO rewards" />
-                <Figure k="Reward weight" v={`${(share / 100).toFixed(1)}%`} sub={gauge ? (gauge.budget > 0n ? `of ${fmt(gauge.budget, 0)} MEZO this epoch` : "no reward budget this epoch") : undefined} />
               </dl>
 
-              {m.undercovered && (
-                <p className="note is-loss">
-                  <b>{fmt(up2(short))} MUSD</b> more cover reopens lender deposits. Until then, deposits and cover withdrawals are paused; borrowing on Morpho is not.
+              {has && (
+                <p className="mk-mine"><b>You</b>
+                  {me!.senior > 0n && <span>Lending {fmt(me!.senior)}</span>}
+                  {me!.junior > 0n && <span>Cover {fmt(me!.junior)}</span>}
+                  {me!.collateral > 0n && <span>Collateral {fmt(me!.collateral)} MEZO</span>}
+                  {debt > 0n && <span>Debt {fmt(debt)}</span>}
                 </p>
               )}
-              {!losses && lossesFailed && <p className="note is-loss" role="alert">Loss history unavailable: could not read loss events from Mezo testnet. Reload the page to try again.</p>}
-              {loss && <p className="note">Last loss {fmt(loss.loss)} MUSD: cover paid {fmt(loss.byJunior)}, lenders paid {fmt(loss.bySenior)}. <a href={txUrl(loss.tx)} target="_blank" rel="noreferrer">Transaction</a></p>}
+              {m.undercovered && <p className="note is-loss"><b>{fmt(up2(coverShortfall(m)))} MUSD</b> more cover reopens lender deposits.</p>}
+              {!losses && lossesFailed && <p className="note is-loss" role="alert">Loss history unavailable right now.</p>}
+              {loss && <p className="mk-loss">Last loss {fmt(loss.loss)} MUSD · cover paid {fmt(loss.byJunior)}, lenders {fmt(loss.bySenior)} · <a href={txUrl(loss.tx)} target="_blank" rel="noreferrer">tx</a></p>}
 
               <div className="mk-foot">
-                <a className="btn btn-dark" href={`#/market/${m.vault}`}>Open market <ArrowE /></a>
-                <a className="btn btn-ghost" href="#/cosign">Co-sign</a>
+                <a className="btn btn-dark btn-sm" href={`#/market/${m.vault}`}>Lend</a>
+                <a className="btn btn-light btn-sm" href={`#/market/${m.vault}/borrow`}>Borrow</a>
+                <a className="btn btn-ghost btn-sm" href={`#/cosign/${m.vault}`}>Co-sign</a>
+                <span className="mk-weight" title="Share of this epoch's MEZO rewards, by cover-capped votes">
+                  Reward weight {(share / 100).toFixed(1)}%
+                </span>
               </div>
             </article>
           );
         })}
       </div>
-
-      <p className="fine">MEZO price {fmt(price / WAD, 4)} MUSD from the demo oracle the Cosign team controls; not a market price. Room to lend caps deposits into a Cosign vault, not borrowing on Morpho.</p>
     </>
   );
 }
 
 // ================================================================ detail
 
-export function MarketDetail(ctx: Ctx & { vault: Address }) {
-  const { markets, vault, losses, d } = ctx;
+export function MarketDetail(ctx: Ctx & { vault: Address; tab: "lend" | "borrow" }) {
+  const { markets, vault, losses, d, price } = ctx;
   const m = markets.find((x) => x.vault.toLowerCase() === vault.toLowerCase());
   const mine = losses?.filter((l) => l.vault.toLowerCase() === vault.toLowerCase());
   const [replay, setReplay] = useState<LossEvent | null>(null);
-  const [tab, setTab] = useState<"lend" | "borrow">("lend");
-  if (!m) return <div className="empty"><h1 className="page-title">Unknown market</h1><p>That address is not a Cosign vault in this deployment.</p><a className="btn btn-dark" href="#/markets">Back to markets</a></div>;
+  const [tab, setTab] = useState(ctx.tab);
+  if (!m) return <div className="empty card card-white"><h1 className="page-title">Unknown market</h1><p>That address is not a Cosign vault in this deployment.</p><a className="btn btn-dark" href="#/markets">Back to markets</a></div>;
   const a = aprs(m);
-  const short = coverShortfall(m);
 
   return (
     <>
-      <nav className="crumb" aria-label="Breadcrumb"><a href="#/markets">Markets</a><span>/</span><span aria-current="page">{m.name}</span></nav>
-      <header className="page-head detail-head">
-        <div>
-          <div className="detail-title"><h1 className="page-title">{m.name}</h1><MarketStatus m={m} /></div>
-          <p className="page-lede">
-            Lenders' MUSD is lent on <a href={addrUrl(d.morpho)} target="_blank" rel="noreferrer">Morpho Blue</a> against MEZO up to {pctTrim((m.lltv * 10_000n) / WAD)} loan-to-value.
-            Cover from co-signers sits in front of it.
-          </p>
-        </div>
-        <a className="link" href={addrUrl(m.vault)} target="_blank" rel="noreferrer">Vault contract <ArrowNE size={14} /></a>
-      </header>
+      <PageHead title={<span className="title-chip">{m.name}<MarketStatus m={m} /></span>}
+        lede={`Lent on Morpho Blue against MEZO · liquidation at ${lltvText(m)} loan-to-value · lenders up to ${m.maxLeverage}× cover`}>
+        <a className="link" href={addrUrl(m.vault)} target="_blank" rel="noreferrer">Vault <ArrowNE size={14} /></a>
+      </PageHead>
 
-      <div className="detail-grid">
-        <div className="detail-main">
+      <div className="split">
+        <div className="split-main">
           <section className="panel card card-white" aria-labelledby="books">
             <div className="panel-head">
-              <h2 id="books" className="panel-title">{replay ? "Replay of a recorded loss" : "Capital stack"}</h2>
+              <h2 id="books" className="panel-title">{replay ? "Recorded loss" : "Capital stack"}</h2>
               {replay ? <span className="chip chip-recorded">Recorded · block {replay.block.toString()}</span> : <span className="chip chip-live">Live</span>}
             </div>
             {replay ? <LossReplay m={m} ev={replay} onDone={() => setReplay(null)} /> : <Stack m={m} />}
-            <dl className="detail-figs">
-              <Figure k="Cover absorbs the first" v={fmt(m.junior)} unit="MUSD" sub={`${pct(m.coverageBps)} of the vault`} tone="cover" />
+            <dl className="figs figs-auto">
+              <Figure k="Market cover" v={fmt(m.junior)} unit="MUSD" sub={`${pct(m.coverageBps)} of the vault`} tone="cover" />
               <Figure k="Lender deposits" v={fmt(m.senior)} unit="MUSD" />
-              <Figure k="Lender share value" v={fmt(m.seniorPrice, 9)} sub="MUSD per starting MUSD" />
-              <Figure k="Room to lend" v={fmt(m.capacity)} unit="MUSD" />
-              <Figure k="Lender APR" v={apr(a.senior)} sub={`${(a.util * 100).toFixed(0)}% of the market borrowed`} />
-              <Figure k="Co-signer APR" v={apr(a.junior)} sub={`${pct(m.premiumBps, 0)} of lender interest`} />
+              <Figure k="Available to lend" v={fmt(m.capacity)} unit="MUSD" />
+              <Figure k="Borrowed" v={fmt(m.totalBorrow)} unit="MUSD" sub={borrowedText(m)} />
+              <Figure k="Lender APR" v={apr(a.senior)} sub="variable" />
+              <Figure k="Co-signer APR" v={apr(a.junior)} sub="before MEZO rewards" />
             </dl>
             {m.undercovered && (
-              <p className="note is-loss">
-                Under-covered after a loss. <b>{fmt(up2(short))} MUSD</b> more cover reopens lender deposits. New deposits and cover withdrawals are paused until then; borrowing on Morpho is not.
-              </p>
+              <p className="note is-loss">Under-covered: <b>{fmt(up2(coverShortfall(m)))} MUSD</b> more cover reopens deposits. Until then, new deposits and cover withdrawals are paused; borrowing is not.</p>
             )}
-            {m.round > 0n && <p className="note">Cover was wiped {m.round.toString()} time(s) and then recapitalised. Old cover shares were retired.</p>}
+            {m.round > 0n && <p className="note">Cover was wiped out {m.round.toString()} time(s) and then recapitalised.</p>}
           </section>
 
           <section className="panel card card-white" aria-labelledby="loss-h">
-            <div className="panel-head"><h2 id="loss-h" className="panel-title">Losses on this market</h2><span className="t-caption">From LossAbsorbed events</span></div>
+            <div className="panel-head">
+              <h2 id="loss-h" className="panel-title">Losses</h2>
+              <a className="link" href="#/evidence">Recorded evidence</a>
+            </div>
             {ctx.lossesFailed && !mine ? (
-              <p className="empty-line is-loss" role="alert">Could not read loss events from Mezo testnet. Reload the page to try again.</p>
+              <p className="empty-line is-loss" role="alert">Couldn't read loss history from Mezo testnet. Reload to try again.</p>
             ) : !mine ? (
-              <p className="empty-line" role="status"><span className="spin" />Reading loss events from Mezo testnet…</p>
+              <p className="empty-line" role="status"><span className="spin" />Reading loss history…</p>
             ) : mine.length === 0 ? (
-              <p className="empty-line">No losses yet. When a Morpho liquidation leaves bad debt, it appears here with the transaction that charged it.</p>
+              <p className="empty-line">No losses on this market.</p>
             ) : (
               <div className="table-wrap">
                 <table className="atable">
-                  <thead><tr><th>Block</th><th className="r">Loss</th><th className="r">Paid by cover</th><th className="r">Paid by lenders</th><th /></tr></thead>
+                  <thead><tr><th>Block</th><th className="r">Loss</th><th className="r">Cover paid</th><th className="r">Lenders paid</th><th /></tr></thead>
                   <tbody>
                     {mine.map((l) => (
                       <tr key={l.tx}>
@@ -161,31 +161,46 @@ export function MarketDetail(ctx: Ctx & { vault: Address }) {
             )}
           </section>
 
-          <section className="panel card card-white guarantee" aria-labelledby="g-title">
-            <h2 id="g-title" className="panel-title">What cover does and does not guarantee</h2>
+          <details className="panel card card-white more-panel">
+            <summary className="panel-title">Parameters and contracts</summary>
+            <dl className="rows rows-2">
+              <Row k="Liquidation loan-to-value">{lltvText(m)}</Row>
+              <Row k="Lenders per MUSD of cover">up to {m.maxLeverage.toString()}×</Row>
+              <Row k="Minimum cover">{pct(minCoverBps(m), 0)} of the vault</Row>
+              <Row k="Borrow rate">{apr(a.borrow)} fixed</Row>
+              <Row k="Co-signer premium">{pct(m.premiumBps, 0)} of lender interest</Row>
+              <Row k="Cover withdrawal notice">{Number(m.cooldown) / 60} minutes, then {Number(m.withdrawWindow) / 3600} h to withdraw</Row>
+              <Row k="Reward split">{pct(m.rewardJuniorBps, 0)} cover · {pct(10_000n - m.rewardJuniorBps, 0)} lenders</Row>
+              <Row k="MEZO price">{fmt(price / WAD, 2)} MUSD · demo oracle (team-controlled)</Row>
+              <Row k="Vault"><a href={addrUrl(m.vault)} target="_blank" rel="noreferrer">{m.vault.slice(0, 10)}… <ArrowNE size={12} /></a></Row>
+              <Row k="Morpho Blue"><a href={addrUrl(d.morpho)} target="_blank" rel="noreferrer">{d.morpho.slice(0, 10)}… <ArrowNE size={12} /></a></Row>
+            </dl>
+          </details>
+
+          <details className="panel card card-white more-panel">
+            <summary className="panel-title">What cover does and doesn't guarantee</summary>
             <div className="g-cols">
               <div>
-                <h3>The contracts enforce</h3>
+                <h3>Enforced by the contracts</h3>
                 <ul>
-                  <li>A loss is taken from cover first. Lenders are charged only for the part of a loss larger than the cover in front of them.</li>
-                  <li>A lender's balance as of the vault's last update is not reduced until losses since then exceed that cover.</li>
-                  <li>Every recognised loss is split between cover and lenders with nothing created or lost.</li>
+                  <li>A loss is taken from cover first. Lenders pay only the part larger than the cover in front of them.</li>
+                  <li>Every recognised loss is split between cover and lenders, with nothing created or lost.</li>
                 </ul>
               </div>
               <div>
-                <h3>They do not guarantee</h3>
+                <h3>Not guaranteed</h3>
                 <ul>
-                  <li>Interest earned since the vault's last update. If a liquidation skips Cosign's liquidator, that interest can absorb part of the loss first; it moves to co-signers.</li>
-                  <li>Protection beyond the cover. A larger loss is shared by lenders still in the vault.</li>
-                  <li>That cover stays. A co-signer whose withdrawal notice has ended can leave before a loss is booked.</li>
-                  <li>A borrowing limit. Cosign caps deposits into this vault, not borrowing in the Morpho market. The MEZO price comes from a demo oracle.</li>
+                  <li>Interest since the vault's last update, if a liquidation skips Cosign's liquidator.</li>
+                  <li>Protection beyond the cover: a larger loss is shared by lenders still in the vault.</li>
+                  <li>That cover stays: a co-signer whose notice has ended can leave before a loss is booked.</li>
+                  <li>A borrowing limit: Cosign caps deposits into this vault, not borrowing on Morpho.</li>
                 </ul>
               </div>
             </div>
-          </section>
+          </details>
         </div>
 
-        <aside className="detail-side">
+        <aside className="split-side" aria-label="Lend or borrow">
           <div className="panel card card-white action-card">
             <div className="seg-tabs" role="tablist" aria-label="Action">
               <button role="tab" aria-selected={tab === "lend"} onClick={() => setTab("lend")}>Lend</button>
@@ -193,8 +208,7 @@ export function MarketDetail(ctx: Ctx & { vault: Address }) {
             </div>
             {tab === "lend" ? <LendPanel {...ctx} m={m} /> : <BorrowPanel {...ctx} m={m} />}
           </div>
-          <a className="side-link card" href="#/cosign"><span><b>Co-sign this market</b><small>Post cover, vote with veBTC</small></span><ArrowE /></a>
-          <a className="side-link card" href="#/evidence"><span><b>Recorded evidence</b><small>Replay and checks from the demo run</small></span><ArrowE /></a>
+          <a className="side-link card" href={`#/cosign/${m.vault}`}><span><b>Co-sign this market</b><small>Post first-loss cover, earn a premium</small></span><ArrowE /></a>
         </aside>
       </div>
     </>
@@ -204,6 +218,7 @@ export function MarketDetail(ctx: Ctx & { vault: Address }) {
 /** Before/after of one recorded loss, read from its LossAbsorbed event. */
 function LossReplay({ m, ev, onDone }: { m: MarketState; ev: LossEvent; onDone: () => void }) {
   const [after, setAfter] = useState<{ s: bigint; j: bigint } | null>(null);
+  const [failed, setFailed] = useState(false);
   const [phase, setPhase] = useState<"before" | "after">("before");
   useEffect(() => {
     client
@@ -211,8 +226,9 @@ function LossReplay({ m, ev, onDone }: { m: MarketState; ev: LossEvent; onDone: 
       .then((logs) => {
         const l = logs.find((x) => x.transactionHash === ev.tx);
         const a = l?.args as { seniorAssetsAfter: bigint; juniorAssetsAfter: bigint } | undefined;
-        if (a) setAfter({ s: a.seniorAssetsAfter, j: a.juniorAssetsAfter });
-      });
+        if (a) setAfter({ s: a.seniorAssetsAfter, j: a.juniorAssetsAfter }); else setFailed(true);
+      })
+      .catch(() => setFailed(true));
   }, [ev]);
   useEffect(() => {
     if (!after) return;
@@ -220,7 +236,8 @@ function LossReplay({ m, ev, onDone }: { m: MarketState; ev: LossEvent; onDone: 
     const t = setTimeout(() => setPhase("after"), reduce ? 0 : 900);
     return () => clearTimeout(t);
   }, [after]);
-  if (!after) return <p className="empty-line" role="status"><span className="spin" />Reading the loss from Mezo testnet…</p>;
+  if (failed) return <p className="empty-line is-loss" role="alert">Couldn't read this loss from Mezo testnet. <button className="link" onClick={onDone}>Back to live view</button></p>;
+  if (!after) return <p className="empty-line" role="status"><span className="spin" />Reading the loss…</p>;
   const before = { s: after.s + ev.bySenior, j: after.j + ev.byJunior };
   const cur = phase === "before" ? before : after;
   return (
@@ -229,7 +246,7 @@ function LossReplay({ m, ev, onDone }: { m: MarketState; ev: LossEvent; onDone: 
       <div className="lreplay-note">
         <p aria-live="polite">
           {phase === "before" ? "Before the liquidation." : (
-            <>Loss of <b>{fmt(ev.loss)} MUSD</b>: cover paid <b className="is-cover">{fmt(ev.byJunior)}</b>, lenders paid <b>{fmt(ev.bySenior)}</b>. <a href={txUrl(ev.tx)} target="_blank" rel="noreferrer">See the transaction</a>.</>
+            <>Loss of <b>{fmt(ev.loss)} MUSD</b>: cover paid <b className="is-cover">{fmt(ev.byJunior)}</b>, lenders paid <b>{fmt(ev.bySenior)}</b>. <a href={txUrl(ev.tx)} target="_blank" rel="noreferrer">Transaction</a></>
           )}
         </p>
         <button className="link" onClick={onDone}>Back to live view</button>
@@ -240,11 +257,11 @@ function LossReplay({ m, ev, onDone }: { m: MarketState; ev: LossEvent; onDone: 
 
 // ================================================================ actions
 
-function Connect({ connect, what }: { connect: () => void; what: string }) {
+export function ConnectGate({ connect, what }: { connect: () => void; what: string }) {
   return (
     <div className="connect-gate">
-      <p>Connect a wallet on Mezo testnet to {what}. Testnet tokens have no value.</p>
-      <button className="btn btn-dark" onClick={connect}>Connect wallet</button>
+      <p>Connect a wallet on Mezo Testnet to {what}.</p>
+      <button className="btn btn-dark btn-block" onClick={connect}>Connect wallet</button>
     </div>
   );
 }
@@ -252,126 +269,134 @@ function Connect({ connect, what }: { connect: () => void; what: string }) {
 function LendPanel({ m, user, account, send, approveIfNeeded, connect, d, busy }: Ctx & { m: MarketState }) {
   const [dep, setDep] = useState("");
   const [wd, setWd] = useState("");
+  if (!account) return <ConnectGate connect={connect} what="lend" />;
   const me = user?.perVault[m.vault];
   const depWei = toWei(dep);
   const tooMuch = depWei > m.capacity;
   const overWallet = !!user && depWei > user.musd;
+  const approved = allowanceOf(user, d.musd, m.vault) >= depWei;
+  const wdWei = toWei(wd);
+  const wdOver = !!me && wdWei > me.senior;
   return (
     <div className="action">
-      <p className="action-lede">{fmt(m.junior)} MUSD of cover sits in front of lenders. Lenders lose money only when a loss is larger than the cover.</p>
-      {!account ? <Connect connect={connect} what="lend" /> : (
-        <>
+      <dl className="rows">
+        <Row k="Your deposits">{user ? `${fmt(me?.senior ?? 0n)} MUSD` : "…"}</Row>
+        <Row k="Wallet">{user ? `${fmt(user.musd)} MUSD` : "…"}</Row>
+        <Row k="Available to lend">{fmt(m.capacity)} MUSD</Row>
+      </dl>
+      <div className="field">
+        <label htmlFor="lend">Deposit</label>
+        <Amount id="lend" value={dep} onChange={setDep} unit="MUSD" max={user && user.musd < m.capacity ? user.musd : m.capacity} invalid={tooMuch || overWallet} />
+        {tooMuch ? <span className="field-hint is-error">Only {fmt(m.capacity)} MUSD available to lend. More cover opens more room.</span>
+          : overWallet ? <span className="field-hint is-error">Your wallet has {fmt(user!.musd)} MUSD.</span>
+          : m.capacity === 0n ? <span className="field-hint">Deposits are closed: {m.undercovered ? "the market is under-covered" : "there is no cover yet"}.</span> : null}
+      </div>
+      {depWei > 0n && !tooMuch && !overWallet && user && <TwoStep approve="MUSD" action="Deposit" done={approved} />}
+      <button className="btn btn-dark btn-block" disabled={busy || depWei === 0n || tooMuch || overWallet || !user}
+        onClick={async function deposit() {
+          if (!(await approveIfNeeded(d.musd, m.vault, depWei, "MUSD", { ready: "deposit", label: `Deposit ${fmt(depWei)} MUSD`, run: deposit }))) return;
+          if (await send("Deposit MUSD", (w) => w.writeContract({ address: m.vault, abi: vaultAbi, functionName: "depositSenior", args: [depWei] }))) setDep("");
+        }}>{depWei === 0n ? "Deposit" : approved ? `Deposit ${fmt(depWei)} MUSD` : `Approve ${fmt(depWei)} MUSD`}</button>
+      <p className="risk-line">You lose money only if a loss exceeds the {fmt(m.junior)} MUSD of cover in front of lenders.</p>
+      {me && me.seniorShares > 0n && (
+        <div className="action-sub">
           <div className="field">
-            <label htmlFor="lend">Deposit</label>
-            <Amount id="lend" value={dep} onChange={setDep} unit="MUSD" max={user && user.musd < m.capacity ? user.musd : m.capacity} invalid={tooMuch || overWallet} />
-            {tooMuch ? <span className="field-hint is-error">Only {fmt(m.capacity)} MUSD of room right now. More cover opens more room.</span>
-              : overWallet ? <span className="field-hint is-error">You have {fmt(user!.musd)} MUSD in this wallet.</span>
-              : <span className="field-hint">Room to lend {fmt(m.capacity)} MUSD · wallet {user ? fmt(user.musd) : "…"} MUSD</span>}
+            <label htmlFor="wd">Withdraw</label>
+            <Amount id="wd" value={wd} onChange={setWd} unit="MUSD" max={me.senior} invalid={wdOver} />
+            {wdOver && <span className="field-hint is-error">You have {fmt(me.senior)} MUSD deposited.</span>}
           </div>
-          <button className="btn btn-dark btn-block" disabled={busy || depWei === 0n || tooMuch || overWallet}
-            onClick={async function deposit() {
-              if (!(await approveIfNeeded(d.musd, m.vault, depWei, "MUSD", { ready: "deposit", label: `Deposit ${fmt(depWei)} MUSD`, run: deposit }))) return;
-              if (await send("Deposit MUSD", (w) => w.writeContract({ address: m.vault, abi: vaultAbi, functionName: "depositSenior", args: [depWei] }))) setDep("");
-            }}>Deposit</button>
-          {m.capacity === 0n && <p className="field-hint">Deposits are closed: {m.undercovered ? "the market is under-covered" : "there is no cover yet"}.</p>}
-          <div className="held"><span>Your deposit</span><b className="num">{user ? `${fmt(me?.senior ?? 0n)} MUSD` : "…"}</b></div>
-          {me && me.seniorShares > 0n && (
-            <>
-              <div className="field">
-                <label htmlFor="wd">Withdraw</label>
-                <Amount id="wd" value={wd} onChange={setWd} unit="MUSD" max={me.senior} />
-                <span className="field-hint">Lenders can leave any time the market has unborrowed MUSD.</span>
-              </div>
-              <button className="btn btn-light btn-block" disabled={busy || toWei(wd) === 0n}
-                onClick={async () => {
-                  const w = toWei(wd);
-                  const shares = w >= me.senior ? me.seniorShares : (me.seniorShares * w) / me.senior;
-                  if (await send("Withdraw MUSD", (wc) => wc.writeContract({ address: m.vault, abi: vaultAbi, functionName: "withdrawSenior", args: [shares] }))) setWd("");
-                }}>Withdraw</button>
-            </>
-          )}
-        </>
+          <button className="btn btn-light btn-block" disabled={busy || wdWei === 0n || wdOver}
+            onClick={async () => {
+              const shares = wdWei >= me.senior ? me.seniorShares : (me.seniorShares * wdWei) / me.senior;
+              if (await send("Withdraw MUSD", (wc) => wc.writeContract({ address: m.vault, abi: vaultAbi, functionName: "withdrawSenior", args: [shares] }))) setWd("");
+            }}>{wdWei > 0n && !wdOver ? `Withdraw ${fmt(wdWei >= me.senior ? me.senior : wdWei)} MUSD` : "Withdraw"}</button>
+        </div>
       )}
     </div>
   );
 }
 
-function estimateDebt(borrowShares: bigint, m: MarketState) {
-  // Morpho borrow shares -> assets, rounding up (virtual shares 1e6, virtual assets 1).
-  return borrowShares === 0n ? 0n : (borrowShares * (m.totalBorrow + 1n)) / (m.totalBorrowShares + 1_000_000n) + 1n;
-}
+type BorrowTab = "collateral" | "borrow" | "repay" | "withdraw";
 
 function BorrowPanel({ m, user, account, send, approveIfNeeded, connect, d, price, busy }: Ctx & { m: MarketState }) {
-  const [coll, setColl] = useState("");
-  const [amt, setAmt] = useState("");
-  const [rep, setRep] = useState("");
-  const [out, setOut] = useState("");
+  const [sub, setSub] = useState<BorrowTab>("collateral");
+  const [v, setV] = useState<Record<BorrowTab, string>>({ collateral: "", borrow: "", repay: "", withdraw: "" });
+  if (!account) return <ConnectGate connect={connect} what="borrow" />;
   const me = user?.perVault[m.vault];
-  const debt = me && m.totalBorrow > 0n ? estimateDebt(me.borrowShares, m) : 0n;
-  const collValue = me ? (me.collateral * price) / 10n ** 36n : 0n;
-  const maxBorrow = (collValue * m.lltv) / WAD;
-  const ltv = collValue > 0n ? Number((debt * 10_000n) / collValue) / 100 : 0;
-  const lltvPct = Number((m.lltv * 10_000n) / WAD) / 100;
+  const debt = me ? debtOf(me.borrowShares, m) : 0n;
+  const value = me ? collateralValue(me.collateral, price) : 0n;
+  const limit = (value * m.lltv) / WAD;
+  const room = limit > debt ? limit - debt : 0n;
+  const liquidity = m.totalSupply > m.totalBorrow ? m.totalSupply - m.totalBorrow : 0n;
+  const ltv = ltvBps(debt, value);
+  const lltv = (m.lltv * 10_000n) / WAD;
+  const amt = toWei(v[sub]);
+  const set = (x: string) => setV({ ...v, [sub]: x });
+  const clear = () => setV({ ...v, [sub]: "" });
+  const tabs: [BorrowTab, string, boolean][] = [["collateral", "Add collateral", true], ["borrow", "Borrow", true], ["repay", "Repay", debt > 0n], ["withdraw", "Withdraw", (me?.collateral ?? 0n) > 0n]];
+  const err =
+    sub === "collateral" && user && amt > user.mezo ? `Your wallet has ${fmt(user.mezo, 4)} MEZO.`
+    : sub === "borrow" && amt > room ? (value === 0n ? "Add collateral first." : `Above your borrow limit: up to ${fmt(room)} MUSD more.`)
+    : sub === "borrow" && amt > liquidity ? `Only ${fmt(liquidity)} MUSD is unborrowed in this market.`
+    : sub === "repay" && amt > debt + debt / 1000n + 1n ? `Your debt is ${fmt(debt)} MUSD.`
+    : sub === "repay" && user && amt > user.musd ? `Your wallet has ${fmt(user.musd)} MUSD.`
+    : sub === "withdraw" && me && amt > me.collateral ? `You have ${fmt(me.collateral)} MEZO posted.`
+    : "";
+  const token = sub === "collateral" ? d.mezo : d.musd;
+  const needApproval = sub === "collateral" || sub === "repay";
+  const full = sub === "repay" && amt >= debt;
+  const approveAmt = full ? debt + debt / 1000n + 1n : amt;
+  const approved = allowanceOf(user, token, d.morpho) >= approveAmt;
+
+  const run = async function act(): Promise<void> {
+    if (sub === "collateral") {
+      if (!(await approveIfNeeded(d.mezo, d.morpho, amt, "MEZO", { ready: "add collateral", label: `Add ${fmt(amt, 4)} MEZO collateral`, run: act }))) return;
+      if (await send("Add collateral", (w) => w.writeContract({ address: d.morpho, abi: morphoAbi, functionName: "supplyCollateral", args: [m.params, amt, account, "0x"] }))) clear();
+    } else if (sub === "borrow") {
+      if (await send("Borrow MUSD", (w) => w.writeContract({ address: d.morpho, abi: morphoAbi, functionName: "borrow", args: [m.params, amt, 0n, account, account] }))) clear();
+    } else if (sub === "repay") {
+      if (!(await approveIfNeeded(d.musd, d.morpho, approveAmt, "MUSD", { ready: "repay", label: `Repay ${fmt(amt)} MUSD`, run: act }))) return;
+      const args = full ? ([m.params, 0n, me!.borrowShares, account, "0x"] as const) : ([m.params, amt, 0n, account, "0x"] as const);
+      if (await send("Repay MUSD", (w) => w.writeContract({ address: d.morpho, abi: morphoAbi, functionName: "repay", args }))) clear();
+    } else {
+      if (await send("Withdraw collateral", (w) => w.writeContract({ address: d.morpho, abi: morphoAbi, functionName: "withdrawCollateral", args: [m.params, amt, account, account] }))) clear();
+    }
+  };
+  const verb = { collateral: "Add", borrow: "Borrow", repay: "Repay", withdraw: "Withdraw" }[sub];
+  const unit = sub === "collateral" || sub === "withdraw" ? "MEZO" : "MUSD";
+  const dp = unit === "MEZO" ? 4 : 2;
+  const max = sub === "collateral" ? user?.mezo : sub === "repay" ? (user && user.musd < debt ? user.musd : debt) : sub === "withdraw" && debt === 0n ? me?.collateral : undefined;
+  const near = ltv !== null && ltv * 10n >= lltv * 9n;
+
   return (
     <div className="action">
-      <p className="action-lede">Post MEZO, borrow MUSD at a fixed {apr(Number(m.borrowApr) / 1e18)}. Above {lltvPct}% loan-to-value the position can be liquidated.</p>
-      {!account ? <Connect connect={connect} what="borrow" /> : (
-        <>
-          <div className="held held-grid">
-            <div><span>Collateral</span><b className="num">{fmt(me?.collateral ?? 0n)} MEZO</b></div>
-            <div><span>Debt</span><b className="num">{fmt(debt)} MUSD</b></div>
-            <div><span>Loan-to-value</span><b className={`num ${ltv > lltvPct * 0.9 ? "is-loss" : ""}`}>{collValue > 0n ? `${ltv.toFixed(1)}%` : "—"}</b></div>
-            <div><span>Borrow up to</span><b className="num">{fmt(maxBorrow)} MUSD</b></div>
-          </div>
-          <div className="field">
-            <label htmlFor="coll">Add MEZO collateral</label>
-            <Amount id="coll" value={coll} onChange={setColl} unit="MEZO" max={user?.mezo} />
-          </div>
-          <button className="btn btn-light btn-block" disabled={busy || toWei(coll) === 0n}
-            onClick={async function addCollateral() {
-              const c = toWei(coll);
-              if (!(await approveIfNeeded(d.mezo, d.morpho, c, "MEZO", { ready: "add collateral", label: `Add ${fmt(c, 4)} MEZO collateral`, run: addCollateral }))) return;
-              if (await send("Add collateral", (w) => w.writeContract({ address: d.morpho, abi: morphoAbi, functionName: "supplyCollateral", args: [m.params, c, account, "0x"] }))) setColl("");
-            }}>Add collateral</button>
-          <div className="field">
-            <label htmlFor="borrow">Borrow</label>
-            <Amount id="borrow" value={amt} onChange={setAmt} unit="MUSD" />
-          </div>
-          <button className="btn btn-dark btn-block" disabled={busy || toWei(amt) === 0n}
-            onClick={async () => {
-              if (await send("Borrow MUSD", (w) => w.writeContract({ address: d.morpho, abi: morphoAbi, functionName: "borrow", args: [m.params, toWei(amt), 0n, account, account] }))) setAmt("");
-            }}>Borrow</button>
-          {debt > 0n && (
-            <>
-              <div className="field">
-                <label htmlFor="repay">Repay</label>
-                <Amount id="repay" value={rep} onChange={setRep} unit="MUSD" max={debt} />
-              </div>
-              <button className="btn btn-light btn-block" disabled={busy || toWei(rep) === 0n}
-                onClick={async function repay() {
-                  const r = toWei(rep);
-                  const full = r >= debt;
-                  if (!(await approveIfNeeded(d.musd, d.morpho, full ? debt + debt / 1000n + 1n : r, "MUSD", { ready: "repay", label: `Repay ${fmt(r)} MUSD`, run: repay }))) return;
-                  const args = full ? ([m.params, 0n, me!.borrowShares, account, "0x"] as const) : ([m.params, r, 0n, account, "0x"] as const);
-                  if (await send("Repay MUSD", (w) => w.writeContract({ address: d.morpho, abi: morphoAbi, functionName: "repay", args }))) setRep("");
-                }}>Repay</button>
-            </>
-          )}
-          {me && me.collateral > 0n && (
-            <>
-              <div className="field">
-                <label htmlFor="wcoll">Withdraw collateral</label>
-                <Amount id="wcoll" value={out} onChange={setOut} unit="MEZO" max={debt === 0n ? me.collateral : undefined} />
-                {debt > 0n && <span className="field-hint">While you have debt, you can only take out collateral that is not backing it.</span>}
-              </div>
-              <button className="btn btn-light btn-block" disabled={busy || toWei(out) === 0n}
-                onClick={async () => {
-                  if (await send("Withdraw collateral", (w) => w.writeContract({ address: d.morpho, abi: morphoAbi, functionName: "withdrawCollateral", args: [m.params, toWei(out), account, account] }))) setOut("");
-                }}>Withdraw collateral</button>
-            </>
-          )}
-        </>
-      )}
+      <dl className="rows">
+        <Row k="Collateral">{user ? `${fmt(me?.collateral ?? 0n, 4)} MEZO` : "…"}{value > 0n && <small> ≈ {fmt(value)} MUSD</small>}</Row>
+        <Row k="Debt">{user ? `${fmt(debt)} MUSD` : "…"}</Row>
+        <Row k="Borrow limit">{fmt(limit)} MUSD</Row>
+      </dl>
+      <div className={`ltv ${near ? "is-near" : ""}`}>
+        <div className="ltv-head"><span>Loan-to-value</span><b className="num">{ltv === null ? "—" : pct(ltv)} <small>/ liquidation {lltvText(m)}</small></b></div>
+        <div className="ltv-bar" aria-hidden="true"><span style={{ width: `${ltv === null ? 0 : Math.min(100, Number((ltv * 100n) / lltv))}%` }} /></div>
+      </div>
+      <div className="mini-tabs" role="tablist" aria-label="Borrow action">
+        {tabs.map(([k, label, on]) => (
+          <button key={k} role="tab" aria-selected={sub === k} disabled={!on} onClick={() => setSub(k)}>{label}</button>
+        ))}
+      </div>
+      <div className="field">
+        <label htmlFor={`b-${sub}`}>{{ collateral: "MEZO to add", borrow: "MUSD to borrow", repay: "MUSD to repay", withdraw: "MEZO to withdraw" }[sub]}</label>
+        <Amount id={`b-${sub}`} value={v[sub]} onChange={set} unit={unit} max={max} invalid={!!err} />
+        {err ? <span className="field-hint is-error">{err}</span>
+          : sub === "borrow" ? <span className="field-hint">Fixed {apr(Number(m.borrowApr) / 1e18)} APR · up to {fmt(room)} MUSD more</span>
+          : sub === "withdraw" && debt > 0n ? <span className="field-hint">While you have debt, withdrawing raises your loan-to-value.</span>
+          : sub === "collateral" && user ? <span className="field-hint">Wallet {fmt(user.mezo, 4)} MEZO</span> : null}
+      </div>
+      {needApproval && amt > 0n && !err && user && <TwoStep approve={sub === "collateral" ? "MEZO" : "MUSD"} action={sub === "collateral" ? "Add collateral" : "Repay"} done={approved} />}
+      <button className="btn btn-dark btn-block" disabled={busy || amt === 0n || !!err || !user} onClick={run}>
+        {amt === 0n ? verb : needApproval && !approved ? `Approve ${fmt(approveAmt, dp)} ${unit}` : `${verb} ${fmt(full ? debt : amt, dp)} ${unit}`}
+      </button>
+      <p className="risk-line">At {lltvText(m)} loan-to-value your collateral can be liquidated. The MEZO price comes from a team-controlled demo oracle.</p>
     </div>
   );
 }
