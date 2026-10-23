@@ -53,6 +53,15 @@ export function fmtCoverShare(mine: bigint, total: bigint) {
   return pctTrim(bps);
 }
 
+/** Shares to request so that at most `amount` of cover leaves: every share once the amount covers the whole holding. */
+export function sharesForCover(amount: bigint, mineAssets: bigint, mineShares: bigint) {
+  if (mineShares === 0n || mineAssets === 0n || amount === 0n) return 0n;
+  return amount >= mineAssets ? mineShares : (amount * mineShares) / mineAssets;
+}
+
+/** What a number of cover shares is worth now, rounded down, with the vault's virtual offsets (1 asset, 1e6 shares). */
+export const coverForShares = (shares: bigint, m: MarketState) => (shares * (m.junior + 1n)) / (m.totalJuniorShares + 1_000_000n);
+
 /** Rounds down to the cent, so room and withdrawable amounts are never overstated. */
 export const down2 = (v: bigint) => (v / 10n ** 16n) * 10n ** 16n;
 

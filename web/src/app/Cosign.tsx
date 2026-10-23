@@ -3,7 +3,7 @@ import { addrUrl, gaugeAbi, vaultAbi, type MarketState } from "../chain";
 import { ArrowNE } from "../ui/Icon";
 import type { Ctx } from "./ctx";
 import { MarketStatus } from "./Markets";
-import { Amount, coverFreeAfter, coverShortfall, down2, fmt, fmtCoverShare, minCoverBps, pct, roomAfterCover, short, Stack, toWei, up2 } from "./ui";
+import { Amount, coverForShares, coverFreeAfter, coverShortfall, down2, fmt, fmtCoverShare, minCoverBps, pct, roomAfterCover, sharesForCover, short, Stack, toWei, up2 } from "./ui";
 
 export function Cosign(ctx: Ctx) {
   const { account, connect, markets } = ctx;
@@ -60,11 +60,24 @@ function coverHint(m: MarketState, amount: bigint) {
 
 function CoverPanel({ m, user, send, approveIfNeeded, d, busy }: Ctx & { m: MarketState }) {
   const [dep, setDep] = useState("");
+  const [out, setOut] = useState("");
   const me = user?.perVault[m.vault];
   const now = BigInt(Math.floor(Date.now() / 1000));
   const req = me?.request;
-  const reqLive = req && req.shares > 0n && req.round === m.round;
-  const ready = reqLive && now >= req.readyAt;
+  const reqPending = !!req && req.shares > 0n && req.round === m.round;
+  const expired = reqPending && now > req!.readyAt + m.withdrawWindow;   // the window after the notice has closed
+  const reqLive = reqPending && !expired;
+  const ready = reqLive && now >= req!.readyAt;
+  // Cover that can leave right now: lenders may hold at most maxLeverage x the cover that stays.
+  const free = coverFreeAfter(m);
+  const held = me?.juniorShares ?? 0n;
+  const reqShares = reqLive ? (req!.shares < held ? req!.shares : held) : 0n;
+  const reqCover = coverForShares(reqShares, m);
+  const blocked = !!ready && reqCover > free;   // the vault would refuse it, so the app does not offer to send it
+  const outWei = toWei(out);
+  const outMax = me ? (me.junior < free ? me.junior : free) : 0n;
+  const outShares = me ? sharesForCover(outWei, me.junior, held) : 0n;
+  const outBad = outWei > outMax;
   const amount = toWei(dep);
   const overWallet = !!user && amount > user.musd;
   const gap = coverShortfall(m);
@@ -95,16 +108,32 @@ function CoverPanel({ m, user, send, approveIfNeeded, d, busy }: Ctx & { m: Mark
         }}>Post cover</button>
       {me && me.juniorShares > 0n && (
         <div className="exit">
+          {expired && <p className="note">Your last withdrawal request ran out: the {Number(m.withdrawWindow) / 3600}-hour window after the notice has closed. Request again.</p>}
           {!reqLive && (
-            <button className="btn btn-ghost btn-block" disabled={busy} onClick={() => send("Request to withdraw cover", (w) => w.writeContract({ address: m.vault, abi: vaultAbi, functionName: "requestJuniorWithdraw", args: [me.juniorShares] }))}>
-              Request to withdraw all cover
-            </button>
+            <>
+              <div className="field">
+                <label htmlFor={`wd-${m.vault}`}>Withdraw cover</label>
+                <Amount id={`wd-${m.vault}`} value={out} onChange={setOut} unit="MUSD" max={outMax} invalid={outBad} />
+                {outBad ? <span className="field-hint is-error">Only {fmt(down2(outMax))} MUSD can leave now.</span>
+                  : <span className="field-hint">{free >= me.junior
+                    ? `All of your cover can leave now. Notice: ${Number(m.cooldown) / 60} minutes, then ${Number(m.withdrawWindow) / 3600} hours to withdraw.`
+                    : `${fmt(down2(free))} MUSD of your ${fmt(me.junior)} can leave while today's lenders stay: lenders may hold at most ${m.maxLeverage}× the cover that remains. Notice: ${Number(m.cooldown) / 60} minutes.`}</span>}
+              </div>
+              <button className="btn btn-ghost btn-block" disabled={busy || outWei === 0n || outBad || outShares === 0n}
+                onClick={() => send("Request to withdraw cover", (w) => w.writeContract({ address: m.vault, abi: vaultAbi, functionName: "requestJuniorWithdraw", args: [outShares] })).then((ok) => ok && setOut(""))}>
+                {outWei > 0n && !outBad ? `Request withdrawal of ${fmt(outWei >= me.junior ? me.junior : outWei)} MUSD` : "Request withdrawal"}
+              </button>
+            </>
           )}
-          {reqLive && !ready && <p className="field-hint"><span className="chip chip-pending">Notice running</span> Ready at {new Date(Number(req!.readyAt) * 1000).toLocaleTimeString()}. Your cover still pays losses until then.</p>}
+          {reqLive && !ready && <p className="field-hint"><span className="chip chip-pending">Notice running</span> {fmt(reqCover)} MUSD can be withdrawn from {new Date(Number(req!.readyAt) * 1000).toLocaleTimeString()}. Your cover still pays losses until then.</p>}
           {reqLive && ready && (
-            <button className="btn btn-light btn-block" disabled={busy} onClick={() => send("Withdraw cover", (w) => w.writeContract({ address: m.vault, abi: vaultAbi, functionName: "withdrawJunior" }))}>Withdraw cover</button>
+            <>
+              <p className="field-hint"><span className="chip chip-live">Ready</span> Withdraw {fmt(reqCover)} MUSD before {new Date(Number(req!.readyAt + m.withdrawWindow) * 1000).toLocaleString()}.</p>
+              {blocked && <p className="note is-loss" role="alert">Withdrawing {fmt(reqCover)} MUSD now would drop this market below its minimum cover, so the vault would refuse it. At most {fmt(down2(free))} MUSD can leave while today's lenders stay.</p>}
+              <button className="btn btn-light btn-block" disabled={busy || blocked} onClick={() => send("Withdraw cover", (w) => w.writeContract({ address: m.vault, abi: vaultAbi, functionName: "withdrawJunior" }))}>Withdraw {fmt(reqCover)} MUSD</button>
+            </>
           )}
-          {me.votes > 0n && <p className="field-hint">Remove your votes on this market before withdrawing all of your cover.</p>}
+          {me.votes > 0n && (reqLive ? reqShares === held : outWei >= me.junior) && <p className="field-hint">Remove your votes on this market before withdrawing all of your cover.</p>}
         </div>
       )}
     </section>

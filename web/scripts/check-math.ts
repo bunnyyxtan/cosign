@@ -1,6 +1,6 @@
 // node scripts/check-math.ts — asserts the cover-shortfall and rounding rules the app shows to users.
 import assert from "node:assert/strict";
-import { coverFreeAfter, coverShareBps, coverShortfall, down2, fmt, fmtCoverShare, minCoverBps, pctTrim, roomAfterCover, up2 } from "../src/app/math.ts";
+import { coverForShares, coverFreeAfter, coverShareBps, coverShortfall, down2, fmt, fmtCoverShare, minCoverBps, pctTrim, roomAfterCover, sharesForCover, up2 } from "../src/app/math.ts";
 
 const E = 10n ** 18n;
 // Bold MEZO as read on 21 Oct 2026: 1,000.0000532 MUSD senior behind 39.3999468 MUSD cover, 19x cap
@@ -48,4 +48,19 @@ assert.equal(fmtCoverShare(0n, all), "0%");
 assert.equal(fmtCoverShare(1n, all), "<0.01%");          // a holding too small to show is never shown as 0
 assert.equal(fmtCoverShare(0n, 0n), "—");                // no cover at all (e.g. empty Steady, or a wiped round)
 assert.equal(coverShareBps(all - 1n, all), 9999n);       // never rounds up to 100% while someone else holds cover
+// Partial cover withdrawal. Bold on 23 Oct 2026: cover 59.3999 MUSD on 603,045,959.5e18 shares; the founder holds
+// 203,045,959.5e18 shares worth 20 MUSD; lenders 1,010.0000532 MUSD, 19x cap.
+const boldNow = { senior: 1_010_000_053_210_176_469_100n, junior: 59_399_946_789_823_529_463n, maxLeverage: 19n, totalJuniorShares: 603_045_959_495_211_582_983_073_218n } as never;
+const myShares = 203_045_959_495_211_582_983_073_218n, myCover = coverForShares(myShares, boldNow);
+assert.equal(fmt(myCover), "20.00");                                          // what the app shows as "Your cover"
+assert.equal(sharesForCover(myCover, myCover, myShares), myShares);            // the whole holding asks for every share
+assert.equal(sharesForCover(myCover + 1n, myCover, myShares), myShares);       // never more shares than held
+assert.equal(sharesForCover(0n, myCover, myShares), 0n);
+assert.equal(sharesForCover(5n * E, myCover, myShares), (5n * E * myShares) / myCover);  // proportional, rounded down
+assert.ok(coverForShares(sharesForCover(5n * E, myCover, myShares), boldNow) <= 5n * E);  // never withdraws more than asked
+assert.equal(fmt(down2(coverFreeAfter(boldNow))), "6.24");                      // 59.3999 - ceil(1010.0000532 / 19) = 6.2420
+assert.ok(5n * E <= coverFreeAfter(boldNow) && 7n * E > coverFreeAfter(boldNow)); // 5 may leave, 7 may not
+const noLenders = { senior: 0n, junior: 59_399_946_789_823_529_463n, maxLeverage: 19n, totalJuniorShares: 603_045_959_495_211_582_983_073_218n } as never;
+assert.equal(coverFreeAfter(noLenders), 59_399_946_789_823_529_463n);           // nobody to protect: all cover can leave
+assert.equal(sharesForCover(5n * E, 0n, 0n), 0n);                              // no holding, nothing to request
 console.log("math ok");

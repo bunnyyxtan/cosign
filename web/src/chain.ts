@@ -161,6 +161,8 @@ export type MarketState = {
   capacity: bigint;
   /** Cover shares outstanding in the current round; a co-signer owns juniorShares / totalJuniorShares of the cover. */
   totalJuniorShares: bigint;
+  /** Seconds a co-signer has to withdraw after the notice period ends. */
+  withdrawWindow: bigint;
   coverageBps: bigint;
   undercovered: boolean;
   seniorPrice: bigint;
@@ -191,7 +193,7 @@ export async function loadMarkets(d: Deployment, at?: bigint): Promise<{ markets
   const fields = [
     "name", "previewBooks", "capacity", "coverageBps", "isUndercovered", "seniorSharePrice", "juniorSharePrice",
     "juniorRound", "maxLeverage", "premiumBps", "rewardJuniorBps", "cooldown", "marketId", "lltv", "marketParams",
-    "totalJuniorShares",
+    "totalJuniorShares", "withdrawWindow",
   ] as const;
   const vaultReads = vaults.flatMap((v) => fields.map((f) => ({ address: v, abi: vaultAbi, functionName: f }) as const));
   const gaugeReads = vaults.flatMap((v) =>
@@ -235,6 +237,7 @@ export async function loadMarkets(d: Deployment, at?: bigint): Promise<{ markets
       lltv: r[13] as bigint,
       params: r[14] as MarketState["params"],
       totalJuniorShares: r[15] as bigint,
+      withdrawWindow: r[16] as bigint,
       borrowApr: 0n,
       totalSupply: 0n,
       totalBorrow: 0n,
