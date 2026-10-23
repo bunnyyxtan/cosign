@@ -4,63 +4,74 @@
 
 <p align="center">
   First-loss cover for Morpho Blue lending markets on Mezo, posted by veBTC holders.<br>
-  Unaudited prototype · Mezo testnet only · <a href="#security-and-limitations">Read the limits first</a>
+  <strong>Unaudited prototype · Mezo testnet only · no real funds</strong> · <a href="#security-and-limitations">Read the limits first</a>
 </p>
 
-<p align="center"><img src="docs/screenshots/readme-explore.png" alt="The recorded loss replay on the Cosign website: cover falls from 400 to 99.5 MUSD while lenders' booked principal stays at 1,000" width="860"></p>
+<p align="center"><a href="https://github.com/bunnyyxtan/cosign/actions/workflows/ci.yml"><img src="https://github.com/bunnyyxtan/cosign/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status on main"></a></p>
 
-## Overview
+<p align="center"><img src="docs/screenshots/site-hero.jpg" alt="The Cosign website: first-loss cover in front of lenders" width="860"></p>
 
-A lender on a lending market has no way to know how much of its own money the people who vouch for the market have at stake. Cosign makes that visible and enforceable.
+## The problem
 
-A veBTC holder (a **co-signer**) posts MUSD as **cover** in a market. Lenders deposit MUSD behind that cover. If a borrower's position is liquidated with bad debt, the loss is charged to cover first and reaches lenders only after cover is gone. In return, co-signers earn a share of the interest and the MEZO rewards that the market attracts.
+Anyone can lend into an on-chain market, but a lender cannot tell how much of their own money the people who vouch for the market have at stake. When a borrower's collateral falls faster than it can be liquidated, the shortfall (bad debt) is shared among lenders, and the lenders find out after it happens.
 
-Cosign does not replace a lending protocol. It sits in front of one market on [Morpho Blue](https://github.com/morpho-org/morpho-blue), unmodified, and decides who bears a loss and who may vote for rewards.
+## What Cosign does
 
-## Mechanism
+A **co-signer** (a veBTC holder) posts MUSD as **junior cover** in a market. **Senior lenders** deposit MUSD behind that cover. If a liquidation leaves bad debt, the loss is charged to the cover first and reaches lenders only for the part that exceeds it. In return, co-signers earn a premium on the interest lenders pay and a share of the MEZO rewards the market attracts.
 
-**Vote = Bond = Credit limit.**
+This is different from a plain lending pool or an insurance fund because the protection is **capital that sits in front of the lender in the same vault**, in a fixed order, visible before you deposit:
 
-| Rule | What the contracts do |
+| | Plain pool | Cosign market |
+|---|---|---|
+| Who takes a loss first | Every lender pro rata | The co-signer's cover |
+| What the lender can check | Nothing about who stands behind the market | Cover posted, cover ratio, lender room (`senior ≤ maxLeverage × cover`) |
+| What a co-signer risks | Nothing | Their cover, earning a premium for it |
+
+**Vote = Bond = Credit limit.** A co-signer's veBTC vote for a market counts only up to the cover they have posted; cover sets how much lenders may deposit; and cover cannot leave without notice. Full detail, with a worked numeric example, is in [docs/PRODUCT.md](docs/PRODUCT.md).
+
+### How the three roles interact
+
+| Role | Does | Gets | Risks |
+|---|---|---|---|
+| **Co-signer** | Posts MUSD cover; votes with veBTC | Interest premium, MEZO rewards | Cover is lost first |
+| **Senior lender** | Deposits MUSD behind the cover | Interest | Only a loss larger than the cover |
+| **Borrower** | Posts MEZO, borrows MUSD on Morpho Blue | Credit | Liquidation |
+
+### Relation to Morpho Blue
+
+Cosign does not replace a lending protocol and does not modify one. Each market is an **unmodified [Morpho Blue](https://github.com/morpho-org/morpho-blue) market** with a Cosign vault as its only supplier. The vault keeps the senior/junior accounting, splits interest, and allocates losses; borrowers use Morpho directly.
+
+### Why veBTC voting and self-funded MEZO incentives
+
+A vote for a market counts only up to its posted cover, so rewards cannot flow to a market nobody has put capital behind. The MEZO paid out is **funded by whoever calls `fund` on the gauge** (anyone may): Cosign does not claim or depend on Mezo protocol emissions, so the incentive scheme works as a real, testable loop today. The gauge reads live veBTC power, splits each epoch's MEZO by capped weight, and streams it 30% to junior and 70% to senior.
+
+## Try it
+
+The website and app read the deployed testnet contracts directly. Nothing needs a wallet to browse, and nothing on the website moves funds. There is **no hosted public URL yet** (see [docs/HOSTING.md](docs/HOSTING.md)); run it locally:
+
+```bash
+git clone --recurse-submodules https://github.com/bunnyyxtan/cosign.git
+cd cosign/web
+npm ci
+npm run dev        # website at http://localhost:5173, app at /app/
+```
+
+The website replays a real testnet liquidation step by step from recorded transactions. The app shows each market's capital stack, lending and borrowing, co-signing, rewards, your positions, and the recorded evidence. To sign transactions it needs a browser wallet on Mezo testnet (Rabby is the primary test wallet).
+
+<p align="center"><img src="docs/screenshots/site-loss-replay.jpg" alt="The recorded loss replay: 400 MUSD of cover in front of 1,000 MUSD of lender principal" width="860"></p>
+
+<p align="center"><img src="docs/screenshots/app-market-bold.jpg" alt="The Bold MEZO market in the app: capital stack, cover in front of lenders, lending and borrowing" width="860"></p>
+
+| | |
 |---|---|
-| Cover is a bond | Co-signer MUSD sits in the junior tranche of a market's vault. A loss reduces it before any lender's balance. |
-| A vote needs a bond | veBTC votes for a market count only up to `cover × capRate`. A vote with no cover has no weight. |
-| Cover sets the credit limit | The vault accepts lender deposits only while `senior ≤ maxLeverage × cover` (19× on the Bold market, 9× on Steady). |
-| Cover cannot vanish at once | Leaving requires a notice period, then a withdrawal window, and is refused if it would drop the market below its minimum cover. |
-| Rewards are not emissions | MEZO paid to markets is funded by whoever calls `fund`. Cosign does not claim Mezo protocol emissions. |
+| <img src="docs/screenshots/app-cosign-cover.jpg" alt="Co-sign page: cover position and partial withdrawal"> | <img src="docs/screenshots/app-rewards.jpg" alt="Rewards page: epoch, fund and distribute, claim"> |
+| <img src="docs/screenshots/app-markets.jpg" alt="Markets overview with two markets"> | <img src="docs/screenshots/app-evidence.jpg" alt="Recorded evidence page linking transactions"> |
 
-## Architecture
+More captures (mobile, wallet dialog, positions) and how they were made: [docs/screenshots](docs/screenshots/README.md).
 
-<p align="center"><img src="docs/architecture.svg" alt="Cosign architecture: participants, Cosign contracts and Morpho Blue" width="860"></p>
+## Real testnet deployment and evidence
 
-| Contract | Role |
-|---|---|
-| [`CosignVault`](contracts/src/CosignVault.sol) | One per market. Tranche accounting (senior and junior shares), interest split with a junior premium, loss waterfall, cover exit rules, reward streaming. Supplies MUSD to the Morpho market. |
-| [`CosignGauge`](contracts/src/CosignGauge.sol) | Reads live veBTC power. Caps each market's weight by its cover. Distributes self-funded MEZO by weight each epoch. `poke` scales down votes whose veBTC power has decayed; `clean` removes votes whose cover is gone. |
-| [`CosignLiquidator`](contracts/src/CosignLiquidator.sol) | Syncs the vault, liquidates on Morpho, syncs again, so interest is booked before a loss is applied. |
-| [`AdminOracle`](contracts/src/AdminOracle.sol) | Owner-set price. **Demo only.** It exists so a price crash can be shown on testnet. |
-| [`FixedRateIrm`](contracts/src/FixedRateIrm.sol) | Fixed-APR interest model for each market. |
-| Morpho Blue | Vendored at commit `9cf6d5b` and deployed unmodified as our own instance. |
-
-External: Mezo MUSD, the MEZO precompile, and the Mezo veBTC contract.
-
-## Product preview
-
-The web front end has two parts. The **website** (`/`) explains the mechanism and replays the recorded loss step by step, wallet-free, from the transactions in `contracts/deployments/demo-run.json`; each step links to the real transaction in the Mezo explorer. The **app** (`/app/`) reads the deployed contracts directly: market overview, each market's capital stack, lending and borrowing, co-signing and veBTC votes, rewards, wallet positions, and the recorded evidence. Nothing on the website moves funds.
-
-<p align="center"><img src="docs/screenshots/readme-market.png" alt="The Bold MEZO market in the Cosign app: the live capital stack, cover in front of lenders, and the cover needed to reopen deposits" width="860"></p>
-
-The capital stack shows money in the order it is lost: cover first, then lenders. The dashed mark is the minimum cover; below it, new deposits pause, and the app states how much cover reopens them.
-
-<p align="center"><img src="docs/screenshots/readme-losses.png" alt="Losses on this market: two liquidation losses, both paid entirely by cover, each linked to its block" width="860"></p>
-
-Design tokens, type and motion rules are in [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md); how the provided artwork was reviewed and placed is in [`docs/ASSET_REVIEW.md`](docs/ASSET_REVIEW.md).
-
-More screenshots are in [`docs/screenshots`](docs/screenshots).
-
-## Onchain proof
-
-Recorded on Mezo testnet against the v2 deployment below. The full list of 35 transactions and all 58 checks, including the six that failed on a first attempt and why, is in [`docs/TESTNET_EVIDENCE.md`](docs/TESTNET_EVIDENCE.md).
+Everything below happened on Mezo testnet (chain `31611`) against the v2 deployment. The full list of 35 transactions and 58 checks, including six that failed on a first attempt and why, is in [docs/TESTNET_EVIDENCE.md](docs/TESTNET_EVIDENCE.md).
 
 | Event | Result | Transaction |
 |---|---|---|
@@ -70,11 +81,11 @@ Recorded on Mezo testnet against the v2 deployment below. The full list of 35 tr
 | Liquidation through `CosignLiquidator` | Senior is credited its interest first; a 60.1 MUSD loss falls entirely on cover; the vault becomes under-covered and lender deposits are blocked | [`0x9e3b672c…`](https://explorer.test.mezo.org/tx/0x9e3b672c54374dd316e5ef90785442335474b41b7b1ced1a7b21165e3bb4ccba) |
 | Gauge distributes epoch 14 | 8 MEZO funded, 8 distributed, 8 claimed, 0 left over | [`0xa2801fd0…`](https://explorer.test.mezo.org/tx/0xa2801fd053fc47e0fb539e0e0b7164828f4fe14092d096debefc580dae3b2942) |
 
-On the first loss the lender's *booked* principal was untouched, but **0.000004 MUSD of interest that had accrued since the last sync was netted against the loss** because the liquidation went straight to Morpho. That is the documented limit of a direct liquidation; `CosignLiquidator` removes it. See [Security and limitations](#security-and-limitations).
+On the first loss, the lender's *booked* principal was untouched, but **0.000004 MUSD of interest that had accrued since the last sync was netted against the loss** because that liquidation went straight to Morpho. That is the documented limit of a direct liquidation; `CosignLiquidator` removes it.
 
-## Live deployments
+### Live deployments
 
-Mezo testnet (chain `31611`), v2. `contracts/script/verify_deploy.py` checks these against the chain (43/43 pass); `contracts/script/verify_bytecode.py` compares deployed bytecode with the compiled source (8/8 match).
+`contracts/script/verify_deploy.py` checks these against the chain (43/43) and `verify_bytecode.py` compares deployed bytecode with the compiled source (8/8 match).
 
 | Contract | Address |
 |---|---|
@@ -85,52 +96,66 @@ Mezo testnet (chain `31611`), v2. `contracts/script/verify_deploy.py` checks the
 | CosignLiquidator | [`0xeA16eD793d165AFD1791a0f83668bf65735ED597`](https://explorer.test.mezo.org/address/0xeA16eD793d165AFD1791a0f83668bf65735ED597) |
 | AdminOracle (demo) | [`0xE9a83636AcBf75eBf3b20497B8126624D4378cc5`](https://explorer.test.mezo.org/address/0xE9a83636AcBf75eBf3b20497B8126624D4378cc5) |
 
-Full list, IRMs, and Mezo's own MUSD, MEZO and veBTC addresses: [`contracts/deployments/31611.json`](contracts/deployments/31611.json). The earlier v1 deployment is archived in `31611-v1.json`.
+All addresses, IRMs and Mezo's own MUSD, MEZO and veBTC addresses: [`contracts/deployments/31611.json`](contracts/deployments/31611.json) (see its [README](contracts/deployments/README.md) for what each record file is). The earlier v1 deployment is archived.
 
-## Getting started
+## Status and testing
 
-Requirements: [Foundry](https://book.getfoundry.sh/) (tested with 1.8.5), Node 20 or newer, Git with submodules.
-
-```bash
-git clone --recurse-submodules https://github.com/bunnyyxtan/cosign.git
-cd cosign
-
-# contracts
-cd contracts
-forge build
-forge test
-
-# app (reads the deployed testnet contracts; no wallet needed to browse)
-cd ../web
-npm ci
-npm run dev
-```
-
-To run the production bundle exactly as it would be hosted: `npm run build && npm run preview`. Hosting notes are in [`docs/HOSTING.md`](docs/HOSTING.md).
-
-The app copies `contracts/deployments/31611.json` and `demo-run.json` into `web/public/` on start. Connecting a wallet requires an injected EIP-1193 browser wallet (Rabby is the primary test wallet, OKX Wallet the alternative) on Mezo testnet; the app offers to add and switch the network.
-
-`web/src/devWallet.ts` is a test-only wallet shim used for screenshots and automated runs. It installs only under `vite dev` when a local, git-ignored `web/.env.development.local` exists, and it is absent from the production bundle.
-
-To repeat the live demo you need your own funded testnet wallets: copy `.env.example` to `.env`, fill in testnet keys, and run `python -I contracts/script/demo.py <stage>` from `contracts/`. Stages are resumable and skip steps already present on-chain.
-
-## Testing
-
-| What | How | Latest recorded result |
+| What | How | Result |
 |---|---|---|
-| Contract unit, edge and adversarial tests | `cd contracts && forge test` | 40 pass, 0 fail (2,000 fuzz runs; see [`docs/test-results.txt`](docs/test-results.txt)) |
-| Fuzzing | Included; set `FOUNDRY_FUZZ_RUNS=2000` | Loss waterfall, round-trip value, last co-signer exit, enforceable guarantee |
-| Frontend type check and build | `cd web && npm run build` | Passes |
+| Contract tests | `cd contracts && forge test` | 40 pass, 0 fail (unit, edge, adversarial and fuzz; [`docs/test-results.txt`](docs/test-results.txt)) |
+| Frontend money-math checks, type check, build | `cd web && npm run check && npm run build` | Pass (also run in CI) |
 | Dependency audit (production) | `cd web && npm audit --omit=dev` | 0 vulnerabilities |
-| Deployment against chain | `python -I contracts/script/verify_deploy.py` | 43/43 |
+| Deployment against the chain | `python -I contracts/script/verify_deploy.py` | 43/43 |
 | Deployed bytecode against source | `python -I contracts/script/verify_bytecode.py` | 8/8 |
-| Browser-wallet flows (Rabby, OKX Wallet) | [`docs/WALLET_ACCEPTANCE.md`](docs/WALLET_ACCEPTANCE.md) | **Not run.** Needs a person with a wallet; no flow is claimed as passed |
+| CI on `main` | [GitHub Actions](.github/workflows/ci.yml): contracts and web jobs, no secrets | See the badge above |
+| **Real browser-wallet testing (Rabby)** | [docs/WALLET_ACCEPTANCE.md](docs/WALLET_ACCEPTANCE.md) | **Partial: 12 rows PASS, 4 PARTIAL, 25 NOT RUN, none failed** |
 
-CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) builds and tests the contracts and builds the app. It uses no wallets or secrets.
+### Real-wallet (Rabby) results, summarised
+
+A person signed every transaction in the Rabby browser extension, and a read-only checker compared each one with the agreed plan onchain. The checklist and the full log with transaction hashes are in [docs/WALLET_ACCEPTANCE.md](docs/WALLET_ACCEPTANCE.md); the scripts are in [`contracts/script/acceptance`](contracts/script/acceptance).
+
+| Flow | Status | Evidence |
+|---|---|---|
+| Connect and reconnect Rabby (A2, A3, A8) | PASS for reconnect after refresh; connect and disconnect are PARTIAL (first runs predate the wallet dialog) | Log, 21 Oct |
+| Post junior cover (C1) | PASS | approve [`0x41166d3a…`](https://explorer.test.mezo.org/tx/0x41166d3ac8f74df3d2fd354c2e84bc1818e25baa01f440bd71c3a18881cb117c), deposit [`0xc7941ccb…`](https://explorer.test.mezo.org/tx/0xc7941ccb9f1b4a2a17b3c1e2479a780a907dc16bcdf789efa9ec4d2db2fc8588) |
+| Lend, partial and full withdrawal (B1, B2, B4) | PASS | e.g. deposit [`0x128ccab0…`](https://explorer.test.mezo.org/tx/0x128ccab0c6c399aefeae82be615e199c7651d19bf876d097d579c4af6e2276c8), withdrawals [`0x7fd6a54d…`](https://explorer.test.mezo.org/tx/0x7fd6a54dd7b99c02a64373d6ff2fa86cfa792c70780ae4a6aae7afe672841e62), [`0xb0d38008…`](https://explorer.test.mezo.org/tx/0xb0d380089e88040fc5c44a6ecc0fcf77dd257a8d82da9a43a6c3e53ce6f0751b) |
+| Borrow lifecycle: add collateral, borrow, repay, withdraw collateral (E1, E2, E4, E5) | PASS | [`0x36b96b80…`](https://explorer.test.mezo.org/tx/0x36b96b80baf3c35450a320d3aa9004b91b65f8b6abfd1cad1797728a91c74bab), [`0x03d16f34…`](https://explorer.test.mezo.org/tx/0x03d16f343ca760e7c4d8fbcf5eb33aaab4e05db797d8a656797820504f075113), [`0x200e44ce…`](https://explorer.test.mezo.org/tx/0x200e44cee58cada8753fd94cb68a9459413e2399c6a69cf253f6a5cc2ec9c83c), [`0x2ae0e4f9…`](https://explorer.test.mezo.org/tx/0x2ae0e4f9c997cdc21d5da47bfbf71b72103ea469a7d228cd10c434cb49be320c) |
+| Request cover withdrawal, wait the notice period, withdraw (C3, C5) | PASS | request [`0x9ad85812…`](https://explorer.test.mezo.org/tx/0x9ad85812aefd3fbf4f833ab8299c1bb379cac48b41ac7a7559f3c13406c499fc), withdraw [`0x8db44c5f…`](https://explorer.test.mezo.org/tx/0x8db44c5f70f6807280ee4e745de5d73bcecef3c1e8b279a1934ea68f0525c670) |
+| Early withdrawal is refused (C4) | PARTIAL: verified by simulation and read-only checks, not by a real-wallet attempt | Log |
+| Rewards: veBTC vote, fund, distribute, claim (D rows) | NOT RUN with a real wallet. Only the MEZO allowance was signed in Rabby; the loop itself is proven by the recorded deployer-signed run above | [`0x1ffa2d7e…`](https://explorer.test.mezo.org/tx/0x1ffa2d7ead074c50fa90b4d13958697dca6911e02374112500ef336dc19a8e8e) |
+| Rejecting prompts, wrong network, network add, OKX Wallet | NOT RUN | |
+
+**Simulations are labelled as such** and never counted: scripted browser runs, local-fork rehearsals and the development wallet shim are not wallet evidence. OKX Wallet has not been run.
+
+## Architecture
+
+<p align="center"><img src="docs/architecture.svg" alt="Cosign architecture: participants, Cosign contracts and Morpho Blue" width="860"></p>
+
+| Contract | Role |
+|---|---|
+| [`CosignVault`](contracts/src/CosignVault.sol) | One per market. Senior and junior share accounting, interest split with a junior premium, loss waterfall, cover exit rules, reward streaming. Supplies MUSD to the Morpho market. |
+| [`CosignGauge`](contracts/src/CosignGauge.sol) | Reads live veBTC power, caps each market's weight by its cover, distributes self-funded MEZO by weight each epoch. |
+| [`CosignLiquidator`](contracts/src/CosignLiquidator.sol) | Syncs the vault, liquidates on Morpho, syncs again, so interest is booked before a loss is applied. |
+| [`AdminOracle`](contracts/src/AdminOracle.sol) | Owner-set price. **Demo only**: it exists so a price crash can be shown on testnet. |
+| [`FixedRateIrm`](contracts/src/FixedRateIrm.sol) | Fixed-APR interest model for each market. |
+| Morpho Blue | Vendored at commit `9cf6d5b`, deployed unmodified as our own instance. |
+
+External: Mezo's MUSD, the MEZO precompile and the veBTC contract.
+
+## Repository map
+
+| Path | Contents |
+|---|---|
+| `contracts/` | Solidity sources, Foundry tests, deployment scripts, [deployment records](contracts/deployments/README.md), real-wallet [session checkers](contracts/script/acceptance) |
+| `web/` | The website (`/`) and app (`/app/`): React, Vite, TypeScript, viem |
+| `docs/` | Product, evidence, acceptance, development and hosting docs. Start at the [docs index](docs/README.md) |
+| `.github/workflows/ci.yml` | CI: contract build and tests; web checks, build and audit |
+
+For build, test and contribution details see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Security and limitations
 
-**Cosign is an unaudited prototype on a test network. Do not use it with real funds.** Cover is first-loss capital, not insurance.
+**Cosign is an unaudited prototype on a test network. It is not mainnet-ready. Do not use it with real funds.** Cover is first-loss capital, not insurance.
 
 What the contracts enforce:
 
@@ -140,32 +165,23 @@ What the contracts enforce:
 
 What they do **not** guarantee:
 
-- **Interest since the last sync, on direct liquidations.** A liquidation sent straight to Morpho can net the unbooked interest against the loss. Use `CosignLiquidator`.
+- **Interest since the last sync, on direct liquidations.** A liquidation sent straight to Morpho can net unbooked interest against the loss. Use `CosignLiquidator`.
 - **Protection beyond the cover.** A larger loss falls on the lenders still in the vault. Lenders who withdrew before it was realised are not charged, so those who stay bear more.
 - **That cover stays.** A co-signer whose notice period has ended can leave before a loss is booked.
-- **A borrowing limit.** The 19× rule caps deposits into a Cosign vault, not borrowing on the Morpho market, and borrowing is not paused when a vault is under-covered.
+- **A borrowing limit.** The leverage rule caps deposits into a Cosign vault, not borrowing on the Morpho market; borrowing is not paused when a vault is under-covered.
 - **Price integrity.** The oracle is a single-owner demo oracle. A production market needs a decentralised one.
+- **Operational trust on testnet.** Morpho's owner on this instance is the deployer account.
 
-Findings, test evidence and open items are in [`docs/TESTNET_REPORT.md`](docs/TESTNET_REPORT.md). To report a vulnerability, see [`SECURITY.md`](SECURITY.md).
+Findings and open items are in [docs/TESTNET_REPORT.md](docs/TESTNET_REPORT.md). To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## Roadmap
 
-Wave 2 candidates, none of which is built:
+Candidates, none of which is built: an independent audit of the vault and gauge accounting; a production price source and borrowing gated on cover; settling losses at liquidation time so exits just before realisation cannot shift losses onto stayers; Mezo mainnet readiness (parameter review, monitoring, keeper operation).
 
-1. Independent audit of the vault and gauge accounting.
-2. Replace the demo oracle with a production price source, and gate borrowing on cover.
-3. Settle losses at liquidation time so exits just before realisation cannot shift losses onto stayers.
-4. Mezo mainnet readiness: parameter review with the Mezo team, monitoring, and keeper operation for `CosignLiquidator`.
-
-## Credits and licensing
+## Licensing and credits
 
 Cosign's own source (`contracts/src`, `contracts/test`, `contracts/script`, `web`) is released under the [MIT License](LICENSE).
 
-Built on, and grateful to:
-
-- [Morpho Blue](https://github.com/morpho-org/morpho-blue) (GPL-2.0-or-later), vendored unmodified as a submodule and deployed as our own instance.
-- [OpenZeppelin Contracts](https://github.com/OpenZeppelin/openzeppelin-contracts) v5.1.0 (MIT) and [forge-std](https://github.com/foundry-rs/forge-std) (MIT or Apache-2.0).
+- [Morpho Blue](https://github.com/morpho-org/morpho-blue) is licensed GPL-2.0-or-later and is vendored unmodified as a submodule and deployed as our own instance. **The interaction between that licence and Cosign's MIT licence has not had legal review**; see [NOTICE.md](NOTICE.md). Nothing here is a statement that it is cleared.
+- [OpenZeppelin Contracts](https://github.com/OpenZeppelin/openzeppelin-contracts) v5.1.0 (MIT), [forge-std](https://github.com/foundry-rs/forge-std) (MIT or Apache-2.0), React, Vite and viem (MIT).
 - [Mezo](https://mezo.org): MUSD, MEZO and veBTC.
-- React, Vite and viem (MIT).
-
-[`NOTICE.md`](NOTICE.md) lists third-party licences, including a note on the Morpho licence and how Cosign links to it.
