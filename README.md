@@ -4,7 +4,8 @@
 
 <p align="center">
   First-loss cover for Morpho Blue lending markets on Mezo, posted by co-signers.<br>
-  <strong>Unaudited prototype · Mezo testnet only · no real funds</strong> · <a href="#security-and-limitations">Read the limits first</a>
+  <strong>Unaudited prototype · Mezo testnet only · no real funds</strong> · <a href="#security-and-limitations">Read the limits first</a><br>
+  <a href="https://cosign-eight.vercel.app/"><strong>Live: cosign-eight.vercel.app</strong></a> · <a href="https://cosign-eight.vercel.app/app/">Open the app</a>
 </p>
 
 <p align="center"><a href="https://github.com/bunnyyxtan/cosign/actions/workflows/ci.yml"><img src="https://github.com/bunnyyxtan/cosign/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status on main"></a></p>
@@ -47,7 +48,12 @@ A vote for a market counts only up to its posted cover, so rewards cannot flow t
 
 ## Try it
 
-The website and app read the deployed testnet contracts directly. Nothing needs a wallet to browse, and nothing on the website moves funds. There is **no hosted public URL yet** (see [docs/HOSTING.md](docs/HOSTING.md)); run it locally:
+The website and app read the deployed testnet contracts directly. Nothing needs a wallet to browse, and nothing on the website moves funds.
+
+- **Website:** [cosign-eight.vercel.app](https://cosign-eight.vercel.app/)
+- **App:** [cosign-eight.vercel.app/app/](https://cosign-eight.vercel.app/app/) (Mezo Testnet only; connect a browser wallet such as Rabby to sign)
+
+To run it locally instead:
 
 ```bash
 git clone --recurse-submodules https://github.com/bunnyyxtan/cosign.git

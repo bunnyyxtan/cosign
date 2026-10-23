@@ -1,6 +1,6 @@
 # Hosting
 
-The app is a static Vite build. It reads the Mezo testnet RPC from each visitor's browser and needs no server, database or secret. **It is not hosted yet**: choosing a host and an account is a decision for the maintainers, and no live URL is claimed anywhere in this repository.
+The app is a static Vite build. It reads the Mezo testnet RPC from each visitor's browser and needs no server, database or secret. **It is hosted on Vercel at [cosign-eight.vercel.app](https://cosign-eight.vercel.app/)** (website) and [/app/](https://cosign-eight.vercel.app/app/) (application), built from `main`.
 
 ## What is ready
 
@@ -18,7 +18,8 @@ The app is a static Vite build. It reads the Mezo testnet RPC from each visitor'
 - The CI jobs, reproduced from a clean clone: web (install, math checks, production build, `npm audit --omit=dev` with 0 vulnerabilities) and contracts (build and all 40 tests at 2,000 fuzz runs). They also run on every push to `main`.
 - Served exactly as Vercel will serve it (the headers from `vercel.json`, which match `web/public/_headers`), every page was loaded at 1440 px and 390 px, plain and with a read-only stand-in wallet connected: website, Markets, Bold, Steady, Recorded evidence, Co-sign, Rewards, Positions. Result, 18 of 18 loads: no CSP violation, no console error, no failed request, no horizontal overflow, the testnet and unaudited warning present, no mock or dev-wallet text. (Scripted run on 23 October 2026, local server, live testnet RPC.)
 - The production bundle contains no dev-wallet code and none of the local test key values.
-- Not yet checked: a hosted URL (headers, the `/app/` directory index and public-RPC behaviour from a visitor's network), and the policy with a wallet connected.
+- The hosted site, 23 October 2026: it serves the same build as `main` at `44414ce` (identical asset hashes); every response carries the policy above plus HSTS; `/app` and `/app/` both open the app; unknown paths return 404. A scripted browser walk of the website and every app page, desktop and phone, plain and with a read-only stand-in wallet (20 loads) found no policy violation, console error or failed request, no horizontal overflow, live reads from `rpc.test.mezo.org` on every app page, and working explorer links from the loss replay.
+- Not yet checked: a real browser wallet (Rabby) on the hosted domain. See [WALLET_ACCEPTANCE.md](WALLET_ACCEPTANCE.md).
 
 ## Vercel
 
@@ -36,7 +37,7 @@ Build command `cd web && npm ci && npm run build`, output directory `web/dist`, 
 - Open the URL in a clean browser profile with no wallet: the first page and the loss replay must work.
 - Check the browser console for blocked requests (the policy lists exactly what is allowed).
 - Run the wallet checklist in [WALLET_ACCEPTANCE.md](WALLET_ACCEPTANCE.md) against the public URL.
-- Only then add the URL to the README and the GitHub repository's website field.
+- The URL is in the README and the GitHub repository's website field.
 
 ## Things to know about running in public
 

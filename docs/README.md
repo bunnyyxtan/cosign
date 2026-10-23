@@ -31,7 +31,7 @@ Cosign is an unaudited prototype on Mezo testnet. Start with the [project README
 | Document | What it covers |
 |---|---|
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Requirements, commands, layout, verification scripts, keys, Git rules |
-| [HOSTING.md](HOSTING.md) | Static hosting, headers, what has and has not been checked. No live URL exists yet |
+| [HOSTING.md](HOSTING.md) | Hosting on Vercel (live at cosign-eight.vercel.app), headers, what has and has not been checked |
 | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Design tokens, type, motion and components |
 | [ASSET_REVIEW.md](ASSET_REVIEW.md) | How the supplied artwork was reviewed and placed |
 | [screenshots/](screenshots/README.md) | The images used in the README and how they were captured |
