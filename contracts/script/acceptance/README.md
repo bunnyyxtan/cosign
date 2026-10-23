@@ -7,6 +7,7 @@ Read-only scripts used during the real-wallet acceptance sessions recorded in [`
 | `borrow-session.mjs` | Borrow, repay, withdraw collateral | 5 |
 | `lending-session.mjs` | Lender deposit and withdrawals, partial cover withdrawal | 6 |
 | `rewards-session.mjs` | veBTC lock, vote, fund, distribute, claim | 7 |
+| `steady-session.mjs` | Activate Steady: approve and post 5 MUSD cover, approve and lend 10 MUSD | 4 |
 
 They are **journey-specific**: each encodes one manifest and the starting state of the test wallet (`0xF080…9371`) at the time, and refuses to start if that state differs. They are kept as a record of how the evidence was produced, not as a general framework.
 
