@@ -101,3 +101,55 @@ export const collateralValue = (collateral: bigint, price: bigint) => (collatera
 export function ltvBps(debt: bigint, value: bigint) {
   return value === 0n ? null : (debt * 10_000n) / value;
 }
+
+// ---------------------------------------------------------------- what a screen may say about a market or a position
+
+/** Lender-deposit status in the contract's own terms. Borrowing on Morpho is separate and not covered here. */
+export type MarketStatusKind = "open" | "full" | "needs-cover" | "empty";
+export function marketStatus(m: Pick<MarketState, "senior" | "junior" | "capacity" | "undercovered" | "maxLeverage">): MarketStatusKind {
+  if (m.senior === 0n && m.junior === 0n) return "empty";
+  if (m.undercovered || (m.capacity === 0n && coverShortfall(m as MarketState) > 0n)) return "needs-cover";
+  if (m.capacity === 0n) return "full";
+  return "open";
+}
+
+/**
+ * A co-signer's withdrawal, decoded from live state. `available` is what may enter a new request now (lenders may
+ * hold at most maxLeverage x the cover that stays); it is not money that can be withdrawn yet.
+ *   none        no request
+ *   pending     notice running; cover still pays losses
+ *   ready       notice over, inside the window, and the vault would accept it now
+ *   unavailable notice over, but withdrawing now would break the minimum cover, so the vault would refuse it
+ *   expired     the window after the notice closed
+ */
+export type ExitKind = "none" | "pending" | "ready" | "unavailable" | "expired";
+export function coverExit(m: MarketState, me: { junior: bigint; juniorShares: bigint; request: { round: bigint; readyAt: bigint; shares: bigint } } | undefined, now: bigint) {
+  const free = coverFreeAfter(m);
+  const available = me ? (me.junior < free ? me.junior : free) : 0n;
+  const req = me?.request;
+  const live = !!req && req.shares > 0n && req.round === m.round;
+  if (!me || !live) return { kind: "none" as ExitKind, available, amount: 0n, shares: 0n, readyAt: 0n, deadline: 0n };
+  const shares = req!.shares < me.juniorShares ? req!.shares : me.juniorShares;
+  const amount = coverForShares(shares, m);
+  const readyAt = req!.readyAt, deadline = req!.readyAt + m.withdrawWindow;
+  const kind: ExitKind = now > deadline ? "expired" : now < readyAt ? "pending" : amount > free ? "unavailable" : "ready";
+  return { kind, available, amount, shares, readyAt, deadline };
+}
+
+const ceilDiv = (a: bigint, b: bigint) => (a + b - 1n) / b;
+/** Morpho's borrow limit for `c` collateral: floor(floor(c x price / 1e36) x lltv / 1e18). */
+export const borrowLimit = (c: bigint, price: bigint, lltv: bigint) => (((c * price) / 10n ** 36n) * lltv) / WAD;
+
+/**
+ * The most collateral that can leave while the loan stays inside its limit, assuming an hour of interest accrues
+ * before the transaction lands. Rounds against the user throughout, so it never overstates. `known` is false when the
+ * oracle price or the market's limit is unavailable, so safety can't be checked.
+ */
+export function collateralOut(collateral: bigint, debt: bigint, price: bigint, lltv: bigint, borrowApr: bigint, bufferSec = 3600n) {
+  if (debt === 0n) return { known: true, max: collateral };
+  if (price === 0n || lltv === 0n) return { known: false, max: 0n };
+  const owed = debt + ceilDiv(debt * borrowApr * bufferSec, WAD * 31_536_000n) + 1n;
+  let need = ceilDiv(ceilDiv(owed * WAD, lltv) * 10n ** 36n, price);
+  while (borrowLimit(need, price, lltv) < owed) need += 1n;
+  return { known: true, max: collateral > need ? collateral - need : 0n };
+}

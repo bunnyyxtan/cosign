@@ -1,6 +1,6 @@
 // node scripts/check-math.ts — asserts the cover-shortfall and rounding rules the app shows to users.
 import assert from "node:assert/strict";
-import { collateralValue, coverForShares, debtOf, ltvBps, coverFreeAfter, coverShareBps, coverShortfall, down2, fmt, fmtCoverShare, minCoverBps, pctTrim, roomAfterCover, sharesForCover, up2 } from "../src/app/math.ts";
+import { borrowLimit, collateralOut, collateralValue, coverExit, coverForShares, debtOf, ltvBps, marketStatus, coverFreeAfter, coverShareBps, coverShortfall, down2, fmt, fmtCoverShare, minCoverBps, pctTrim, roomAfterCover, sharesForCover, up2 } from "../src/app/math.ts";
 
 const E = 10n ** 18n;
 // Bold MEZO as read on 21 Oct 2026: 1,000.0000532 MUSD senior behind 39.3999468 MUSD cover, 19x cap
@@ -70,4 +70,44 @@ assert.ok(owed >= 10n * E && owed <= 10n * E + 2n);
 assert.equal(collateralValue(5n * E, 10n * 10n ** 36n), 50n * E);   // 5 MEZO at 10 MUSD
 assert.equal(ltvBps(10n * E, 50n * E), 2000n);                       // 10 / 50 = 20%
 assert.equal(ltvBps(1n, 0n), null);
+// ---------------------------------------------------------------- market status in the contract's terms
+const mk = (senior: bigint, junior: bigint, capacity: bigint, undercovered = false) => ({ senior, junior, capacity, undercovered, maxLeverage: 19n });
+assert.equal(marketStatus(mk(0n, 0n, 0n)), "empty");                          // Steady today: nothing posted
+assert.equal(marketStatus(mk(1000n * E, 54n * E, 26n * E)), "open");
+assert.equal(marketStatus(mk(190n * E, 10n * E, 0n)), "full");                // exactly at 19x: room exhausted
+assert.equal(marketStatus(mk(1000n * E, 40n * E, 0n, true)), "needs-cover");
+assert.equal(marketStatus(mk(100n * E, 0n, 0n)), "needs-cover", "lenders with no cover need cover even if the flag lags");
+assert.equal(marketStatus(mk(0n, 5n * E, 95n * E)), "open", "cover alone opens room");
+
+// ---------------------------------------------------------------- cover withdrawal states
+const vault = { senior: 1000n * E, junior: 54_400_000_000_000_000_000n, maxLeverage: 19n, totalJuniorShares: 544_000_000n * E, round: 0n, withdrawWindow: 86_400n } as never;
+const holder = (shares: bigint, readyAt: bigint, round = 0n) => ({ junior: 15n * E, juniorShares: 150_000_000n * E, request: { round, readyAt, shares } });
+const T = 1_800_000_000n;
+const none = coverExit(vault, holder(0n, 0n), T);
+assert.equal(none.kind, "none");
+assert.ok(none.available > 1n * E && none.available < 2n * E, "available to request is the free cover, not the whole holding");
+assert.equal(coverExit(vault, holder(10_000_000n * E, T + 600n), T).kind, "pending");
+assert.equal(coverExit(vault, holder(10_000_000n * E, T), T).kind, "ready", "ready from the second the notice ends");
+assert.equal(coverExit(vault, holder(100_000_000n * E, T - 1n), T).kind, "unavailable", "more than may leave: the vault would refuse it");
+assert.equal(coverExit(vault, holder(10_000_000n * E, T - 86_400n), T).kind, "ready", "last second of the window still counts");
+assert.equal(coverExit(vault, holder(10_000_000n * E, T - 86_401n), T).kind, "expired");
+assert.equal(coverExit(vault, holder(10_000_000n * E, T, 1n), T).kind, "none", "a request from a wiped-out round is void");
+
+// ---------------------------------------------------------------- safe collateral withdrawal (Morpho rounding, 1 h buffer)
+const P = 10n * 10n ** 36n, LLTV = 770_000_000_000_000_000n, APR = 0n; // 10 MUSD per MEZO, 77%
+assert.deepEqual(collateralOut(5n * E, 0n, P, LLTV, APR), { known: true, max: 5n * E }, "no debt: everything may leave");
+assert.deepEqual(collateralOut(5n * E, 10n * E, 0n, LLTV, APR), { known: false, max: 0n }, "no oracle price: can't check, nothing offered");
+const out = collateralOut(5n * E, 10n * E, P, LLTV, APR);
+const left = 5n * E - out.max;
+assert.ok(borrowLimit(left, P, LLTV) >= 10n * E + 1n, "what stays still covers the debt");
+assert.ok(borrowLimit(left - 1n, P, LLTV) < 10n * E + 1n, "and it is the smallest such amount (exact boundary)");
+assert.ok(out.max > 3n * E && out.max < 4n * E);                               // needs ~1.2987 MEZO, so ~3.70 may leave
+const withRate = collateralOut(5n * E, 10n * E, P, LLTV, 120_000_000_000_000_000n); // 12% APR
+assert.ok(withRate.max < out.max, "accruing interest is reserved, never overstated");
+assert.equal(collateralOut(1n * E, 8n * E, P, LLTV, APR).max, 0n, "already beyond the limit: nothing may leave");
+const marginOut = collateralOut(5n * E, 10n * E, P, (LLTV * 85n) / 100n, APR);    // what Max fills: 85% of the limit
+assert.ok(marginOut.max < out.max && ltvBps(10n * E, collateralValue(5n * E - marginOut.max, P))! <= 6545n, "Max keeps a margin below the limit");
+const near = collateralOut(13n * E / 10n, 10n * E, P, LLTV, APR);           // LTV ~76.9%: a sliver at most
+assert.ok(near.max < 2n * 10n ** 15n, near.max.toString());
+
 console.log("math ok");
