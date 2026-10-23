@@ -1,6 +1,6 @@
 // node scripts/check-math.ts — asserts the cover-shortfall and rounding rules the app shows to users.
 import assert from "node:assert/strict";
-import { coverForShares, coverFreeAfter, coverShareBps, coverShortfall, down2, fmt, fmtCoverShare, minCoverBps, pctTrim, roomAfterCover, sharesForCover, up2 } from "../src/app/math.ts";
+import { collateralValue, coverForShares, debtOf, ltvBps, coverFreeAfter, coverShareBps, coverShortfall, down2, fmt, fmtCoverShare, minCoverBps, pctTrim, roomAfterCover, sharesForCover, up2 } from "../src/app/math.ts";
 
 const E = 10n ** 18n;
 // Bold MEZO as read on 21 Oct 2026: 1,000.0000532 MUSD senior behind 39.3999468 MUSD cover, 19x cap
@@ -63,4 +63,11 @@ assert.ok(5n * E <= coverFreeAfter(boldNow) && 7n * E > coverFreeAfter(boldNow))
 const noLenders = { senior: 0n, junior: 59_399_946_789_823_529_463n, maxLeverage: 19n, totalJuniorShares: 603_045_959_495_211_582_983_073_218n } as never;
 assert.equal(coverFreeAfter(noLenders), 59_399_946_789_823_529_463n);           // nobody to protect: all cover can leave
 assert.equal(sharesForCover(5n * E, 0n, 0n), 0n);                              // no holding, nothing to request
+// Debt from Morpho borrow shares rounds up (never understated); LTV is debt over collateral value at the oracle price.
+assert.equal(debtOf(0n, { totalBorrow: 10n * E, totalBorrowShares: 10n * E * 1_000_000n } as never), 0n);
+const owed = debtOf(10n * E * 1_000_000n, { totalBorrow: 10n * E, totalBorrowShares: 10n * E * 1_000_000n } as never);
+assert.ok(owed >= 10n * E && owed <= 10n * E + 2n);
+assert.equal(collateralValue(5n * E, 10n * 10n ** 36n), 50n * E);   // 5 MEZO at 10 MUSD
+assert.equal(ltvBps(10n * E, 50n * E), 2000n);                       // 10 / 50 = 20%
+assert.equal(ltvBps(1n, 0n), null);
 console.log("math ok");

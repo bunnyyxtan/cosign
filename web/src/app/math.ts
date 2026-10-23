@@ -88,3 +88,16 @@ export function coverFreeAfter(m: MarketState, extra = 0n) {
 }
 
 export const marketKey = (m: MarketState) => (m.name.toLowerCase().includes("steady") ? "steady" : "bold");
+
+/** Morpho borrow shares to MUSD owed, rounded up (virtual shares 1e6, virtual assets 1), so debt is never understated. */
+export function debtOf(borrowShares: bigint, m: Pick<MarketState, "totalBorrow" | "totalBorrowShares">) {
+  return borrowShares === 0n ? 0n : (borrowShares * (m.totalBorrow + 1n)) / (m.totalBorrowShares + 1_000_000n) + 1n;
+}
+
+/** Collateral value in MUSD at the oracle price (Morpho scales prices by 1e36). */
+export const collateralValue = (collateral: bigint, price: bigint) => (collateral * price) / 10n ** 36n;
+
+/** Loan-to-value in basis points, or null without collateral. Liquidation is possible once it reaches the market's LLTV. */
+export function ltvBps(debt: bigint, value: bigint) {
+  return value === 0n ? null : (debt * 10_000n) / value;
+}

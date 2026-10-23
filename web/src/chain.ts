@@ -303,7 +303,11 @@ export type UserState = {
     }
   >;
   veTokens: { id: bigint; power: bigint; votedThisEpoch: boolean; votes: Record<Address, bigint> }[];
+  /** ERC-20 allowances this account has given Cosign's spenders, keyed by allowanceKey(token, spender). */
+  allowances: Record<string, bigint>;
 };
+
+export const allowanceKey = (token: Address, spender: Address) => `${token}:${spender}`.toLowerCase();
 
 export async function loadUser(d: Deployment, markets: MarketState[], epoch: bigint, user: Address, at?: bigint): Promise<UserState> {
   const b = at === undefined ? {} : { blockNumber: at };
@@ -313,6 +317,11 @@ export async function loadUser(d: Deployment, markets: MarketState[], epoch: big
     client.readContract({ address: d.mezo, abi: erc20Abi, functionName: "balanceOf", args: [user], ...b }),
     client.readContract({ address: d.veBTC, abi: veAbi, functionName: "balanceOf", args: [user], ...b }),
   ]);
+  // Read at the same block as everything else, so a form never shows an approval step that is already done.
+  const pairs = [...markets.map((m) => [d.musd, m.vault]), [d.musd, d.morpho], [d.mezo, d.morpho], [d.mezo, d.gauge]] as [Address, Address][];
+  const allowed = await Promise.all(pairs.map(([t, s]) => client.readContract({ address: t, abi: erc20Abi, functionName: "allowance", args: [user, s], ...b })));
+  const allowances: Record<string, bigint> = {};
+  pairs.forEach(([t, s], i) => (allowances[allowanceKey(t, s)] = allowed[i]));
   const perVault: UserState["perVault"] = {};
   const reads = markets.flatMap((m) => [
     { address: m.vault, abi: vaultAbi, functionName: "seniorBalanceOf", args: [user] } as const,
@@ -364,7 +373,7 @@ export async function loadUser(d: Deployment, markets: MarketState[], epoch: big
       return { id, power, votedThisEpoch: last === epoch + 1n, votes };
     }),
   );
-  return { btc, musd, mezo, perVault, veTokens };
+  return { btc, musd, mezo, perVault, veTokens, allowances };
 }
 
 export type LossEvent = { vault: Address; loss: bigint; byJunior: bigint; bySenior: bigint; tx: Hex; block: bigint };

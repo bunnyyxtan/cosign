@@ -1,5 +1,6 @@
-import { formatUnits } from "viem";
-import type { MarketState } from "../chain";
+import type { ReactNode } from "react";
+import { formatUnits, type Address } from "viem";
+import { allowanceKey, type MarketState, type UserState } from "../chain";
 
 export * from "./math";
 import { fmt, minCoverBps, pct } from "./math";
@@ -17,11 +18,17 @@ export function Figure({ k, v, unit, sub, tone }: { k: string; v: string; unit?:
   );
 }
 
+/** Digits and one decimal point, at most 18 decimals (the token precision), so what is typed is what is sent. */
+export function cleanAmount(v: string) {
+  const [whole, ...rest] = v.replace(/,/g, ".").replace(/[^0-9.]/g, "").split(".");
+  return rest.length ? `${whole}.${rest.join("").slice(0, 18)}` : whole;
+}
+
 export function Amount({ value, onChange, max, unit, id, invalid }: { value: string; onChange: (v: string) => void; max?: bigint; unit: string; id: string; invalid?: boolean }) {
   return (
     <div className={`amount ${invalid ? "is-error" : ""}`}>
       <input id={id} inputMode="decimal" placeholder="0.00" autoComplete="off" value={value} aria-invalid={invalid || undefined}
-        onChange={(e) => onChange(e.target.value.replace(/[^0-9.]/g, ""))} />
+        onChange={(e) => onChange(cleanAmount(e.target.value))} />
       <span className="amount-unit">{unit}</span>
       {max !== undefined && <button type="button" className="amount-max" onClick={() => onChange(formatUnits(max, 18))}>Max</button>}
     </div>
@@ -65,4 +72,37 @@ export function Stack({ m, lost = 0n, lostSenior = 0n, senior, junior, scale, co
       )}
     </figure>
   );
+}
+
+export function PageHead({ title, lede, children }: { title: ReactNode; lede?: ReactNode; children?: ReactNode }) {
+  return (
+    <header className="page-head">
+      <div className="page-head-main">
+        <h1 className="page-title">{title}</h1>
+        {lede && <p className="page-lede">{lede}</p>}
+      </div>
+      {children && <div className="page-actions">{children}</div>}
+    </header>
+  );
+}
+
+/** The allowance the connected account has given `spender` for `token`, as read with the rest of its positions. */
+export const allowanceOf = (user: UserState | null, token: Address, spender: Address) => user?.allowances[allowanceKey(token, spender)] ?? 0n;
+
+/**
+ * Approval and action are two wallet signatures. This shows which one comes next, from the live allowance, so the
+ * next step stays in the form whatever happens to the notification.
+ */
+export function TwoStep({ approve, action, done }: { approve: string; action: string; done: boolean }) {
+  return (
+    <ol className="twostep" aria-label="Wallet steps">
+      <li className={done ? "done" : "on"} aria-current={done ? undefined : "step"}>{done ? `${approve} approved` : `1 · ${approve}`}</li>
+      <li className={done ? "on" : ""} aria-current={done ? "step" : undefined}>2 · {action}</li>
+    </ol>
+  );
+}
+
+/** A labelled value in a compact list. */
+export function Row({ k, children, tone }: { k: ReactNode; children: ReactNode; tone?: "loss" | "cover" | "muted" }) {
+  return <div className="row"><dt>{k}</dt><dd className={`num ${tone ? `is-${tone}` : ""}`}>{children}</dd></div>;
 }
