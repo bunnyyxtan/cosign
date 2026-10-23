@@ -192,7 +192,52 @@ function VotePanel({ user, markets, send, d, gauge, busy }: Ctx) {
   );
 }
 
-export function Rewards({ user, account, connect, markets, gauge, send, busy }: Ctx) {
+/** Anyone can add MEZO to the current epoch's budget and, once an epoch is over, distribute it. */
+function FundPanel({ user, gauge, send, approveIfNeeded, d, busy }: Ctx) {
+  const [amt, setAmt] = useState("");
+  const wei = toWei(amt);
+  const over = !!user && wei > user.mezo;
+  return (
+    <section className="panel card card-white" aria-labelledby="fund-h">
+      <div className="panel-head">
+        <h2 id="fund-h" className="panel-title">Fund and distribute</h2>
+        {gauge && <span className="t-caption num">Epoch {gauge.epoch.toString()}</span>}
+      </div>
+      <p className="action-lede">Anyone can add MEZO to the current epoch's budget. Once the epoch is over, anyone can distribute it: it is split between markets by vote weight, then each market's cover holders and lenders claim their share as it streams out.</p>
+      <div className="field">
+        <label htmlFor="fund">Add MEZO to this epoch</label>
+        <Amount id="fund" value={amt} onChange={setAmt} unit="MEZO" max={user?.mezo} invalid={over} />
+        {over ? <span className="field-hint is-error">You have {fmt(user!.mezo, 4)} MEZO in this wallet.</span>
+          : <span className="field-hint">Testnet MEZO. It leaves your wallet for good; you get back only your own share of what is distributed.</span>}
+      </div>
+      <button className="btn btn-dark btn-block" disabled={busy || wei === 0n || over}
+        onClick={async function fundEpoch() {
+          if (!(await approveIfNeeded(d.mezo, d.gauge, wei, "MEZO", { ready: "add it to the budget", label: `Add ${fmt(wei, 4)} MEZO`, run: fundEpoch }))) return;
+          if (await send("Fund rewards", (w) => w.writeContract({ address: d.gauge, abi: gaugeAbi, functionName: "fund", args: [wei] }))) setAmt("");
+        }}>Add to the budget</button>
+      {gauge && gauge.waiting.length > 0 ? (
+        <div className="table-wrap">
+          <table className="atable">
+            <thead><tr><th>Finished epoch</th><th className="r">Budget</th><th /></tr></thead>
+            <tbody>
+              {gauge.waiting.map((w) => (
+                <tr key={w.epoch.toString()}>
+                  <td className="num">Epoch {w.epoch.toString()}</td>
+                  <td className="r num">{fmt(w.budget, 4)} MEZO</td>
+                  <td className="r"><button className="btn btn-light btn-sm" disabled={busy}
+                    onClick={() => send(`Distribute epoch ${w.epoch}`, (wc) => wc.writeContract({ address: d.gauge, abi: gaugeAbi, functionName: "distribute", args: [w.epoch] }))}>Distribute</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <p className="field-hint">Nothing is waiting to be distributed.</p>}
+    </section>
+  );
+}
+
+export function Rewards(ctx: Ctx) {
+  const { user, account, connect, markets, gauge, send, busy } = ctx;
   const split = markets[0] ? Number(markets[0].rewardJuniorBps) / 100 : 0;
   return (
     <>
@@ -211,6 +256,7 @@ export function Rewards({ user, account, connect, markets, gauge, send, busy }: 
           <div><dt>Wallet MEZO</dt><dd className="num">{user ? fmt(user.mezo, 4) : "—"}</dd></div>
         </dl>
       )}
+      {account && <FundPanel {...ctx} />}
       {!account ? (
         <div className="empty card card-white"><h2 className="panel-title">Connect a wallet to see your rewards</h2><button className="btn btn-dark" onClick={connect}>Connect wallet</button></div>
       ) : (

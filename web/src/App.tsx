@@ -43,6 +43,8 @@ const REASONS: Record<string, string> = {
   NotApproved: "This wallet doesn't own that veBTC position.",
   NoPower: "This veBTC position has no voting power.",
   ZeroAmount: "Enter a larger amount.",
+  EpochNotOver: "That epoch has not ended yet. It can be distributed once it is over.",
+  AlreadyDistributed: "That epoch was already distributed.",
 };
 
 function explain(e: unknown): string {

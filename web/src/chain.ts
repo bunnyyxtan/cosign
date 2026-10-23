@@ -119,6 +119,9 @@ export const gaugeAbi = parseAbi([
   "function accountVotes(address vault, address account) view returns (uint256)",
   "function tokenVotes(uint256 tokenId, address vault) view returns (uint256)",
   "function lastVotedEpochPlusOne(uint256) view returns (uint256)",
+  "function distributed(uint256) view returns (bool)",
+  "function fund(uint256 amount)",
+  "function distribute(uint256 epoch)",
   "function vote(uint256 tokenId, address[] targets, uint256[] weights)",
   "function reset(uint256 tokenId)",
   "event Distributed(uint256 indexed epoch, address indexed vault, uint256 weight, uint256 amount)",
@@ -128,6 +131,8 @@ export const gaugeAbi = parseAbi([
   "error UnknownVault()",
   "error NoCover()",
   "error NoPower()",
+  "error EpochNotOver()",
+  "error AlreadyDistributed()",
 ]);
 
 export const morphoAbi = parseAbi([
@@ -184,7 +189,8 @@ export type MarketState = {
   coverCap: bigint;
 };
 
-export type GaugeState = { epoch: bigint; epochEnd: bigint; budget: bigint; totalWeight: bigint };
+/** `waiting`: finished epochs (among the last 12) that were funded and have not been distributed yet. */
+export type GaugeState = { epoch: bigint; epochEnd: bigint; budget: bigint; totalWeight: bigint; waiting: { epoch: bigint; budget: bigint }[] };
 
 /** `at` pins every read to one block, so a refresh never mixes pre- and post-transaction state. */
 export async function loadMarkets(d: Deployment, at?: bigint): Promise<{ markets: MarketState[]; gauge: GaugeState; price: bigint }> {
@@ -205,14 +211,24 @@ export async function loadMarkets(d: Deployment, at?: bigint): Promise<{ markets
     client.readContract({ address: d.gauge, abi: gaugeAbi, functionName: "currentEpoch", ...b }),
     client.readContract({ address: d.oracle, abi: oracleAbi, functionName: "price", ...b }),
   ]);
-  const [epochEnd, budget] = await client.multicall({
+  const past = Array.from({ length: Number(epoch < 12n ? epoch : 12n) }, (_, i) => epoch - 1n - BigInt(i));
+  const [epochEnd, budget, ...pastReads] = (await client.multicall({
     contracts: [
-      { address: d.gauge, abi: gaugeAbi, functionName: "epochEnd", args: [epoch] },
-      { address: d.gauge, abi: gaugeAbi, functionName: "epochBudget", args: [epoch] },
-    ],
+      { address: d.gauge, abi: gaugeAbi, functionName: "epochEnd", args: [epoch] } as const,
+      { address: d.gauge, abi: gaugeAbi, functionName: "epochBudget", args: [epoch] } as const,
+      ...past.flatMap((k) => [
+        { address: d.gauge, abi: gaugeAbi, functionName: "epochBudget", args: [k] } as const,
+        { address: d.gauge, abi: gaugeAbi, functionName: "distributed", args: [k] } as const,
+      ]),
+    ] as never, // mixed-ABI batch: the result is cast below
     allowFailure: false,
     ...b,
-  });
+  })) as unknown as [bigint, bigint, ...(bigint | boolean)[]];
+  const waiting = past
+    .map((k, i) => ({ epoch: k, budget: pastReads[i * 2] as bigint, done: pastReads[i * 2 + 1] as boolean }))
+    .filter((x) => x.budget > 0n && !x.done)
+    .map(({ epoch: e, budget: bg }) => ({ epoch: e, budget: bg }))
+    .reverse();
 
   const markets: MarketState[] = vaults.map((vault, i) => {
     const r = vr.slice(i * fields.length, (i + 1) * fields.length) as unknown[];
@@ -265,7 +281,7 @@ export async function loadMarkets(d: Deployment, at?: bigint): Promise<{ markets
   });
 
   const totalWeight = markets.reduce((a, m) => a + m.weight, 0n);
-  return { markets, gauge: { epoch, epochEnd, budget, totalWeight }, price };
+  return { markets, gauge: { epoch, epochEnd, budget, totalWeight, waiting }, price };
 }
 
 export type UserState = {
