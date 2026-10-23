@@ -1,9 +1,9 @@
-> **Archived v1 report.** Superseded by the v2 deployment; see `TESTNET_REPORT.md` and `TESTNET_EVIDENCE.md`. Kept as a record, including its failures.
+> **Archived v1 report.** Superseded by the v2 deployment; see [`../TESTNET_REPORT.md`](../TESTNET_REPORT.md) and [`../TESTNET_EVIDENCE.md`](../TESTNET_EVIDENCE.md). Kept as a record, including its failures.
 
 # Cosign: Mezo testnet deployment and end-to-end verification
 
 Engineering Directive 004 report. 20 October 2026. Network: **Mezo testnet, chain ID 31611** (RPC `https://rpc.test.mezo.org`, explorer `https://explorer.test.mezo.org`).
-Every number below comes from on-chain state or transaction logs. The full tables (every contract, deployment transaction, demo transaction and check, with explorer links) are in [`TESTNET_EVIDENCE.md`](TESTNET_EVIDENCE.md), generated from `contracts/deployments/*.json` and Foundry's broadcast logs.
+Every number below comes from on-chain state or transaction logs. The full tables (every contract, deployment transaction, demo transaction and check, with explorer links) are in [`TESTNET_EVIDENCE.md`](../TESTNET_EVIDENCE.md), generated from `contracts/deployments/*.json` and Foundry's broadcast logs.
 
 > Unaudited prototype on testnet. No mainnet transactions, no real funds, nothing published.
 
@@ -110,7 +110,7 @@ forge test                      # 25 passed, 0 failed
 forge test --fuzz-runs 5000     # 25 passed; both fuzz tests 5,000 runs each
 ```
 
-Full output: [`test-results.txt`](test-results.txt). The suite runs against a **real Morpho Blue** instance.
+Full output: [`test-results.txt`](../test-results.txt). The suite runs against a **real Morpho Blue** instance.
 
 | Directive item | Test(s) | Live testnet evidence |
 |---|---|---|
@@ -186,7 +186,7 @@ Every transaction below was made **through the UI** against the deployed contrac
 - APRs are labelled as simple rates: borrow APR × utilisation, with the junior premium applied.
 - The MEZO price is labelled as coming from the demo oracle.
 
-**Screenshots** (in `docs/screenshots/`, light and dark): `markets-*.png`, `cosign-*.png`, `market-bold-*.png`, `market-bold-mobile.png`. At 390px wide there is 0px of horizontal overflow.
+**Screenshots** (superseded; the files are no longer in the repository, current captures are in `../screenshots/`): `markets-*.png`, `cosign-*.png`, `market-bold-*.png`, `market-bold-mobile.png`. At 390px wide there is 0px of horizontal overflow.
 
 **Known gaps:**
 - Untested with a real browser wallet extension: MetaMask approval prompts and the chain-switch / add-chain path. The pane has no extension, so all browser testing used the dev wallet, which reports chain 31611 directly.

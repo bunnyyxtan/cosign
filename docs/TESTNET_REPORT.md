@@ -1,6 +1,6 @@
 # Cosign v2: testnet status report
 
-20 October 2026. Mezo testnet, chain 31611. Unaudited prototype; no mainnet transactions, no real funds. Every figure comes from chain state or transaction logs; the full tables are in [`TESTNET_EVIDENCE.md`](TESTNET_EVIDENCE.md), generated from the recorded run. The archived v1 report is [`TESTNET_REPORT_v1.md`](TESTNET_REPORT_v1.md).
+20 October 2026. Mezo testnet, chain 31611. Unaudited prototype; no mainnet transactions, no real funds. Every figure comes from chain state or transaction logs; the full tables are in [`TESTNET_EVIDENCE.md`](TESTNET_EVIDENCE.md), generated from the recorded run. The archived v1 report is [`archive/TESTNET_REPORT_v1.md`](archive/TESTNET_REPORT_v1.md).
 
 ## What changed from v1
 
@@ -30,7 +30,7 @@ Checks: 52 pass, 6 fail as recorded. The failures are kept in the evidence with 
 | `npm audit --omit=dev` | 0 vulnerabilities |
 | Deployment verification against chain | 43/43 |
 | Deployed bytecode against compiled source | 8/8 |
-| Secret scan, working tree and full git history | No wallet key, token or key block found; `.env` never committed |
+| Secret scan, working tree and full git history | No wallet key, token or key block found; `.env` never committed (re-run 23 October over every reachable commit) |
 | Production bundle | No dev-wallet code, no key material |
 
 ## Release-readiness
@@ -41,7 +41,7 @@ Checks: 52 pass, 6 fail as recorded. The failures are kept in the evidence with 
 | First-loss waterfall on a real liquidation | PASS | Measured twice |
 | Self-funded rewards reconcile | PASS | Exact to the wei at end of stream |
 | UI claims no stronger guarantee than the contracts | PASS | Guarantee panel states the limits |
-| Real-wallet acceptance on testnet (Rabby, OKX Wallet) | **BLOCKED** | Not run: no wallet extension available to the automated session. Only a test-only wallet shim was used. A human run is required before any claim about browser-wallet flows |
+| Real-wallet acceptance on testnet (Rabby) | **PARTIAL** (since 23 October) | A person has signed the connect and reload flows, cover and lender deposits, the full borrow lifecycle, senior withdrawals and a partial cover withdrawal in Rabby, each verified onchain: see [`WALLET_ACCEPTANCE.md`](WALLET_ACCEPTANCE.md) for every row, hash and the rows still open (voting and rewards, a second wallet, a first-time tester). OKX Wallet has not been run |
 | Independent audit | **NOT DONE** | Required before any mainnet use |
 | Production oracle | **BLOCKED for mainnet** | Single-owner demo oracle |
 | Direct-liquidation interest netting | Known limit | Bounded by interest since last sync; fixed only for the liquidator path |

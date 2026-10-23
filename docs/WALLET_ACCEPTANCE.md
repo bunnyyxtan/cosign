@@ -1,8 +1,8 @@
 # Real-wallet acceptance checklist
 
-**Status: IN PROGRESS with Rabby** (started 21 October 2026). Rows not yet run stay `NOT RUN`. The engineering session has no wallet extension, so no result below is a pass. Every row stays `NOT RUN` until a person completes it with a real browser wallet extension (see **Wallets under test**) and records what they saw. The test-only wallet shim used during development is **not** valid evidence and must not be used here.
+**Status, 23 October 2026: PARTIAL.** Real-wallet acceptance with **Rabby** is under way: **12 rows PASS, 4 PARTIAL, 25 NOT RUN, none failed.** A row is PASS only when a person completed it in a real browser-wallet extension and the result was checked against the chain; PARTIAL means part of the expected result is evidenced; NOT RUN means nothing is claimed. Scripted browser runs, simulations on a local fork and the development wallet shim are **never** counted as wallet evidence, and are labelled as simulations in the log. OKX Wallet has not been run. The log of every session, with transaction hashes and before/after balances, is the table titled **Rabby results log** below.
 
-The redesigned app on `feat/premium-site` (served at `/app/`) changes the layout, not the wallet or transaction flows, so every row below applies to it. Its transaction tray steps through Sign, Mining and Confirmed. When testing, also check that it reads **Confirmed** only once the explorer shows the transaction succeeded, and that action buttons stay disabled while a transaction is in flight.
+The checklist applies to the current app (served at `/app/`). Its transaction tray steps through Sign, Mining and Confirmed. When testing, also check that it reads **Confirmed** only once the explorer shows the transaction succeeded, and that action buttons stay disabled while a transaction is in flight. Each approval stops at "Allowance approved" and the action is a separate click.
 
 Run it against the production build, so you test what judges will get:
 

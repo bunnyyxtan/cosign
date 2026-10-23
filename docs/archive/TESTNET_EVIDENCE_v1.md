@@ -1,3 +1,5 @@
+> **Archived v1 evidence.** Generated for the v1 deployment, superseded by v2; see [`../TESTNET_EVIDENCE.md`](../TESTNET_EVIDENCE.md). Kept as a record, including its failures.
+
 # Cosign testnet evidence (generated)
 
 Generated from `contracts/deployments/31611.json`, `contracts/deployments/demo-run.json` and the Foundry broadcast logs. Network: Mezo testnet, chain 31611.
