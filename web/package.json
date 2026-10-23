@@ -8,7 +8,7 @@
     "dev": "npm run sync && vite",
     "build": "npm run sync && tsc --noEmit && vite build",
     "preview": "vite preview",
-    "check": "node scripts/check-math.ts"
+    "check": "node scripts/check-math.ts && node scripts/check-activity.ts"
   },
   "dependencies": {
     "react": "^18.3.1",
