@@ -153,3 +153,24 @@ export function collateralOut(collateral: bigint, debt: bigint, price: bigint, l
   while (borrowLimit(need, price, lltv) < owed) need += 1n;
   return { known: true, max: collateral > need ? collateral - need : 0n };
 }
+
+/**
+ * A veBTC vote's allocation: which markets it names and the relative weights sent to gauge.vote. The gauge gives each
+ * market power x weight / sum, so the shown percentage is weight / sum, in tenths (largest remainder, so they add up
+ * to exactly 100.0). With one eligible market the whole vote goes to it ([100]). Markets at zero are left out. This is
+ * how the vote is split, not the market's effective share of rewards, which the gauge caps by cover.
+ */
+export function voteSplit(eligible: string[], weights: Record<string, number>) {
+  if (eligible.length === 1) return { vaults: [eligible[0]], weights: [100n], pct: { [eligible[0]]: 100 } as Record<string, number> };
+  const named = eligible.filter((v) => Math.round(weights[v] ?? 0) > 0);
+  const total = named.reduce((a, v) => a + Math.round(weights[v]), 0);
+  const tenths: Record<string, number> = Object.fromEntries(eligible.map((v) => [v, 0]));
+  if (total > 0) {
+    const raw = named.map((v) => ({ v, x: (Math.round(weights[v]) * 1000) / total }));
+    raw.forEach((r) => (tenths[r.v] = Math.floor(r.x)));
+    let left = 1000 - raw.reduce((a, r) => a + Math.floor(r.x), 0);
+    for (const r of [...raw].sort((a, b) => (b.x % 1) - (a.x % 1))) { if (left-- <= 0) break; tenths[r.v] += 1; }
+  }
+  const pct = Object.fromEntries(Object.entries(tenths).map(([v, t]) => [v, t / 10]));
+  return { vaults: named, weights: named.map((v) => BigInt(Math.round(weights[v]))), pct };
+}

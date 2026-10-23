@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { gaugeAbi, vaultAbi } from "../chain";
 import type { Ctx } from "./ctx";
 import { ConnectGate } from "./Markets";
-import { allowanceOf, Amount, fmt, PageHead, pct, toWei, TwoStep } from "./ui";
+import { allowanceOf, Amount, fmt, PageHead, pct, toWei, TwoStep, voteSplit } from "./ui";
 import { href } from "./routes";
 
 function useNow(ms = 1000) {
@@ -132,13 +132,16 @@ function VotePanel({ user, account, markets, send, d, gauge, busy }: Ctx) {
   const tokens = user?.veTokens ?? [];
   const [sel, setSel] = useState<bigint | null>(null);
   const [w, setW] = useState<Record<string, number>>({});
+  const weightOf = (v: string) => w[v] ?? 50; // several markets start evenly split
   const [recorded, setRecorded] = useState<{ epoch: bigint; capped: string[] } | null>(null);
   // A market's effective weight is its votes capped by its cover; once at the cap, more votes add nothing.
   const capped = (m: (typeof markets)[number]) => m.coverCap > 0n && m.votes >= m.coverCap;
   const shareOf = (m: (typeof markets)[number]) => (gauge && gauge.totalWeight > 0n ? Number((m.weight * 10_000n) / gauge.totalWeight) / 100 : 0);
   const token = useMemo(() => tokens.find((t) => t.id === sel) ?? tokens[0], [tokens, sel]);
   const eligible = markets.filter((m) => (user?.perVault[m.vault]?.juniorShares ?? 0n) > 0n);
-  const total = eligible.reduce((a, m) => a + (w[m.vault] ?? 0), 0);
+  const split = voteSplit(eligible.map((m) => m.vault), Object.fromEntries(eligible.map((m) => [m.vault, weightOf(m.vault)])));
+  const sharePct = (m: (typeof markets)[number]) => `${Number(shareOf(m).toFixed(1))}%`;
+  const byVault = (v: string) => eligible.find((m) => m.vault === v)!;
   return (
     <section className="panel card card-white" aria-labelledby="vote-h">
       <div className="panel-head">
@@ -157,18 +160,39 @@ function VotePanel({ user, account, markets, send, d, gauge, busy }: Ctx) {
                 {tokens.map((t) => <option key={t.id.toString()} value={t.id.toString()}>#{t.id.toString()} · {fmt(t.power, 6)} voting power</option>)}
               </select>
             </div>
-            {eligible.length === 0 ? <p className="note">You can vote only for markets where you hold cover. <a href={href.cosign()}>Post cover</a> first.</p> : (
-              <div className="sliders">
-                {eligible.map((m) => (
-                  <div key={m.vault} className="slider">
-                    <label htmlFor={`w-${m.vault}`}>{m.name}</label>
-                    <input id={`w-${m.vault}`} type="range" min={0} max={100} value={w[m.vault] ?? 0} onChange={(e) => setW({ ...w, [m.vault]: Number(e.target.value) })} />
-                    <span className="num">{total ? Math.round(((w[m.vault] ?? 0) / total) * 100) : 0}%</span>
-                    <small className="num">Effective share of rewards {shareOf(m).toFixed(1)}%{capped(m) ? " · at its cover cap: more votes add no weight" : ""}</small>
+            {eligible.length === 0 ? <p className="note">You can vote only for markets where you hold cover. <a href={href.cosign()}>Post cover</a> first.</p>
+              : eligible.length === 1 ? (
+                <dl className="vote-one">
+                  <div><dt>Allocation</dt><dd>100% to {eligible[0].name}</dd></div>
+                  <div><dt>Effective reward share</dt><dd className="num">{sharePct(eligible[0])}</dd></div>
+                  <p>{capped(eligible[0])
+                    ? `${eligible[0].name.split(" ")[0]} is already at its cover cap, so more votes do not increase effective weight.`
+                    : "Effective weight is the smaller of a market's votes and what its cover backs."}</p>
+                </dl>
+              ) : (
+                <div className="alloc">
+                  <div className="alloc-bar" role="img" aria-label={eligible.map((m) => `${m.name} ${split.pct[m.vault] ?? 0}%`).join(", ")}>
+                    {eligible.map((m, i) => (split.pct[m.vault] ?? 0) > 0 && (
+                      <span key={m.vault} className={`alloc-seg s${i % 3}`} style={{ width: `${split.pct[m.vault]}%` }}>
+                        {(split.pct[m.vault] ?? 0) >= 12 && <b className="num">{split.pct[m.vault]}%</b>}
+                      </span>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
+                  {eligible.map((m, i) => (
+                    <div key={m.vault} className="alloc-row">
+                      <label htmlFor={`w-${m.vault}`}><i className={`alloc-dot s${i % 3}`} aria-hidden="true" />{m.name}</label>
+                      <input id={`w-${m.vault}`} className="alloc-range" type="range" min={0} max={100} step={1} value={weightOf(m.vault)}
+                        style={{ "--v": `${weightOf(m.vault)}%` } as React.CSSProperties}
+                        onChange={(e) => setW({ ...Object.fromEntries(eligible.map((x) => [x.vault, weightOf(x.vault)])), [m.vault]: Number(e.target.value) })}
+                        aria-valuetext={`Weight ${weightOf(m.vault)}, ${split.pct[m.vault] ?? 0}% of your vote`} />
+                      <dl className="alloc-figs">
+                        <div><dt>Your allocation</dt><dd className="num">{split.pct[m.vault] ?? 0}%</dd></div>
+                        <div><dt>Effective reward share</dt><dd className="num">{sharePct(m)}{capped(m) ? <small> · at cover cap</small> : null}</dd></div>
+                      </dl>
+                    </div>
+                  ))}
+                </div>
+              )}
             {recorded && (
               <div className="status-box is-ok" role="status">
                 <span className="chip chip-live">Vote recorded</span>
@@ -177,11 +201,11 @@ function VotePanel({ user, account, markets, send, d, gauge, busy }: Ctx) {
             )}
             {token?.votedThisEpoch && <p className="field-hint">Position #{token.id.toString()} already voted this epoch. It can vote again next epoch.</p>}
             <div className="btn-row">
-              <button className="btn btn-dark" disabled={busy || !token || total === 0 || token.votedThisEpoch}
+              <button className="btn btn-dark" disabled={busy || !token || split.vaults.length === 0 || token.votedThisEpoch}
                 onClick={() => {
-                  const ms = eligible.filter((m) => (w[m.vault] ?? 0) > 0);
+                  const ms = split.vaults.map(byVault);
                   const ep = gauge?.epoch ?? 0n, caps = ms.filter(capped).map((m) => m.name);
-                  send("Vote", (wc) => wc.writeContract({ address: d.gauge, abi: gaugeAbi, functionName: "vote", args: [token!.id, ms.map((m) => m.vault), ms.map((m) => BigInt(w[m.vault]))] }))
+                  send("Vote", (wc) => wc.writeContract({ address: d.gauge, abi: gaugeAbi, functionName: "vote", args: [token!.id, ms.map((m) => m.vault), split.weights] }))
                     .then((ok) => ok && setRecorded({ epoch: ep, capped: caps }));
                 }}>Vote</button>
               {token && Object.values(token.votes).some((v) => v > 0n) && (

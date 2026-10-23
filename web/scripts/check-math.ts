@@ -1,6 +1,6 @@
 // node scripts/check-math.ts — asserts the cover-shortfall and rounding rules the app shows to users.
 import assert from "node:assert/strict";
-import { borrowLimit, collateralOut, collateralValue, coverExit, coverForShares, debtOf, ltvBps, marketStatus, coverFreeAfter, coverShareBps, coverShortfall, down2, fmt, fmtCoverShare, minCoverBps, pctTrim, roomAfterCover, sharesForCover, up2 } from "../src/app/math.ts";
+import { voteSplit, borrowLimit, collateralOut, collateralValue, coverExit, coverForShares, debtOf, ltvBps, marketStatus, coverFreeAfter, coverShareBps, coverShortfall, down2, fmt, fmtCoverShare, minCoverBps, pctTrim, roomAfterCover, sharesForCover, up2 } from "../src/app/math.ts";
 
 const E = 10n ** 18n;
 // Bold MEZO as read on 21 Oct 2026: 1,000.0000532 MUSD senior behind 39.3999468 MUSD cover, 19x cap
@@ -109,5 +109,19 @@ const marginOut = collateralOut(5n * E, 10n * E, P, (LLTV * 85n) / 100n, APR);  
 assert.ok(marginOut.max < out.max && ltvBps(10n * E, collateralValue(5n * E - marginOut.max, P))! <= 6545n, "Max keeps a margin below the limit");
 const near = collateralOut(13n * E / 10n, 10n * E, P, LLTV, APR);           // LTV ~76.9%: a sliver at most
 assert.ok(near.max < 2n * 10n ** 15n, near.max.toString());
+
+// ---------------------------------------------------------------- veBTC vote allocation
+const VB = "0xbold", VS = "0xsteady";
+assert.deepEqual(voteSplit([VB], {}), { vaults: [VB], weights: [100n], pct: { [VB]: 100 } }, "one eligible market: the whole vote, no slider needed");
+assert.deepEqual(voteSplit([VB], { [VB]: 7 }).weights, [100n], "a stray slider value can't change a single-market vote");
+assert.deepEqual(voteSplit([VB, VS], {}).vaults, [], "several markets and nothing chosen: nothing to send");
+const two = voteSplit([VB, VS], { [VB]: 30, [VS]: 10 });
+assert.deepEqual(two.vaults, [VB, VS]); assert.deepEqual(two.weights, [30n, 10n]);
+assert.deepEqual(two.pct, { [VB]: 75, [VS]: 25 }, "relative weights normalised");
+const odd = voteSplit([VB, VS], { [VB]: 2, [VS]: 1 });
+assert.deepEqual(odd.pct, { [VB]: 66.7, [VS]: 33.3 }, "shown to a tenth, as the gauge splits power x weight / sum");
+const thirds = voteSplit([VB, VS, "0xc"], { [VB]: 1, [VS]: 1, "0xc": 1 });
+assert.equal(Math.round(Object.values(thirds.pct).reduce((a, b) => a + b, 0) * 10), 1000, "percentages always add up to 100.0");
+assert.deepEqual(voteSplit([VB, VS], { [VB]: 50, [VS]: 0 }).vaults, [VB], "a market at zero is left out of the vote");
 
 console.log("math ok");

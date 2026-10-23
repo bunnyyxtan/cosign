@@ -535,7 +535,7 @@ function Loading({ text }: { text: string }) {
 function NetStatus({ online, loadError, live, wrongChain, onSwitch, onOpen }: {
   online: boolean; loadError: boolean; live: boolean; wrongChain: boolean; onSwitch: () => void; onOpen: () => void;
 }) {
-  if (wrongChain) return <button className="net is-bad" onClick={onSwitch}><i aria-hidden="true" />Wrong network<span className="net-x">: switch</span></button>;
+  if (wrongChain) return <button className="net is-bad" onClick={onSwitch} aria-label="Wrong network. Switch to Mezo Testnet"><i aria-hidden="true" /><span className="net-t">Wrong network</span><span className="net-x">: switch</span></button>;
   const [cls, text] = !online ? ["is-bad", "Offline"] : loadError ? ["is-bad", "Testnet unreachable"] : live ? ["is-ok", "Mezo Testnet"] : ["", "Connecting"];
   return <button className={`net ${cls}`} onClick={onOpen} aria-label={`${text}. Network and risk details`}><i aria-hidden="true" /><span className="net-t">{text}</span></button>;
 }
@@ -596,9 +596,48 @@ function Toasts({ items, busy, onClose, onHold }: { items: TxItem[]; busy: boole
   const shown = items.slice(0, 3);
   // The container unmounts with its last toast, so no mouseleave or blur arrives: release the hold here.
   useEffect(() => { if (!shown.length) onHold(false); }, [shown.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Publish the stack's height so the page can leave room for it at the bottom.
+  const box = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const root = document.documentElement.style;
+    const el = box.current;
+    if (!el) { root.setProperty("--toast-h", "0px"); return; }
+    // Collision handling with the stack kept bottom-right: the sticky action panel is limited to the room above the
+    // stack (measured from where the panel actually is, so banners and scroll position count), and a field in use
+    // that a new notice would cover is scrolled clear once.
+    const fit = () => {
+      root.setProperty("--toast-h", `${Math.ceil(el.getBoundingClientRect().height)}px`);
+      const side = document.querySelector<HTMLElement>(".split-side");
+      if (side && getComputedStyle(side).position === "sticky") {
+        const room = window.innerHeight - side.getBoundingClientRect().top - el.getBoundingClientRect().height - 40;
+        side.style.maxHeight = `${Math.max(180, Math.floor(room))}px`;
+      } else if (side) side.style.maxHeight = "";
+    };
+    const clearFocus = () => {
+      const a = document.activeElement as HTMLElement | null;
+      if (!a || a === document.body || el.contains(a)) return;
+      const r = a.getBoundingClientRect(), t = el.getBoundingClientRect();
+      if (r.bottom <= t.top - 8 || r.right <= t.left || r.left >= t.right) return;
+      const by = r.bottom - (t.top - 16);
+      const panel = a.closest<HTMLElement>(".split-side");
+      if (panel && panel.scrollHeight > panel.clientHeight) panel.scrollTop += by; else window.scrollBy({ top: by });
+    };
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    document.documentElement.classList.add("has-toasts");
+    fit();
+    requestAnimationFrame(() => { fit(); clearFocus(); });
+    window.addEventListener("scroll", fit, { passive: true });
+    window.addEventListener("resize", fit);
+    return () => {
+      ro.disconnect(); window.removeEventListener("scroll", fit); window.removeEventListener("resize", fit);
+      root.setProperty("--toast-h", "0px"); document.documentElement.classList.remove("has-toasts");
+      const side = document.querySelector<HTMLElement>(".split-side"); if (side) side.style.maxHeight = "";
+    };
+  }, [shown.length > 0 || leaving.length > 0]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!shown.length && !leaving.length) return null;
   return (
-    <div className="toasts" aria-live="polite" onMouseEnter={() => onHold(true)} onMouseLeave={() => onHold(false)}
+    <div className="toasts" ref={box} aria-live="polite" onMouseEnter={() => onHold(true)} onMouseLeave={() => onHold(false)}
       onFocus={() => onHold(true)} onBlur={() => onHold(false)}>
       {shown.map((t) => <Toast key={t.id} t={t} busy={busy} onClose={() => onClose(t.id)} />)}
       {leaving.filter((t) => !shown.some((s) => s.id === t.id)).map((t) => <Toast key={`x${t.id}`} t={t} busy leaving onClose={() => {}} />)}
