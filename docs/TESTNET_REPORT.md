@@ -25,7 +25,7 @@ Checks: 52 pass, 6 fail as recorded. The failures are kept in the evidence with 
 
 | Item | Result |
 |---|---|
-| Foundry | 40 pass, 0 fail, 2,000 fuzz runs |
+| Foundry | 40 pass, 0 fail, 2,000 fuzz runs (at this report; 51 pass now, with the experimental, undeployed Pyth oracle) |
 | Frontend `tsc` and production build | Pass |
 | `npm audit --omit=dev` | 0 vulnerabilities |
 | Deployment verification against chain | 43/43 |

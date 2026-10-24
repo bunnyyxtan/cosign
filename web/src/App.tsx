@@ -679,14 +679,14 @@ function About({ open, onClose, online, loadError, updated, price }: {
       <dl className="wm-facts">
         <div><dt>Network</dt><dd>Mezo Testnet · chain 31611</dd></div>
         <div><dt>Data</dt><dd>{!online ? "Offline" : loadError ? "Not reachable" : updated ? `Live · read ${updated.toLocaleTimeString()}` : "Connecting…"}</dd></div>
-        {price > 0n && <div><dt>MEZO price</dt><dd className="num">{fmt(price / WAD, 2)} MUSD · demo oracle</dd></div>}
+        {price > 0n && <div><dt>MEZO price</dt><dd className="num">{fmt(price / WAD, 2)} MUSD · team-set demo price</dd></div>}
       </dl>
       <h3 className="wm-sub">Risks</h3>
       <ul className="wm-risks">
         <li><b>Cover is first-loss.</b> It pays for bad debt before lenders and can be lost in full.</li>
         <li><b>Lenders can lose money</b> when a loss is larger than the cover in front of them.</li>
         <li><b>Borrowers can be liquidated</b> when their loan-to-value reaches the market's limit.</li>
-        <li><b>The MEZO price is a demo oracle</b> the Cosign team controls; it is not a market price.</li>
+        <li><b>The MEZO price is a demo price</b> the Cosign team sets{price > 0n ? ` (${fmt(price / WAD, 2)} MUSD)` : ""}; it is not a market price, so borrow limits are illustrative.</li>
         <li><b>MEZO rewards are funded by participants</b> through the gauge. They aren't protocol emissions and aren't guaranteed.</li>
       </ul>
       <div className="wm-links">

@@ -15,7 +15,9 @@ interface IPythPrices {
     function getPriceUnsafe(bytes32 id) external view returns (Price memory);
 }
 
-/// @notice MEZO priced in MUSD for a Morpho Blue market, from two Pyth feeds: MEZO/USD divided by MUSD/USD, at
+/// @notice EXPERIMENTAL AND NOT DEPLOYED. A Wave 2 candidate to replace the AdminOracle demo price; no market uses it.
+///         See docs/PYTH_ORACLE_PLAN.md for the findings, blockers and migration plan.
+///         MEZO priced in MUSD for a Morpho Blue market, from two Pyth feeds: MEZO/USD divided by MUSD/USD, at
 ///         Morpho's scale (1e36 = 1 MUSD per MEZO; both tokens have 18 decimals).
 ///         It reverts rather than return a price that is stale, not positive, or too uncertain. Morpho then refuses
 ///         borrows, collateral withdrawals and liquidations until a fresh update lands; repaying and adding collateral

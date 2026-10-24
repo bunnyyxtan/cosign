@@ -192,7 +192,7 @@ function Roles() {
           <div className="role-copy">
             <span className="eyebrow">03 / Borrowers</span>
             <h3 className="t-title">Borrow against MEZO.</h3>
-            <p>Borrow MUSD from the underlying Morpho Blue market. Cosign caps deposits into its vaults, not borrowing.</p>
+            <p>Borrow MUSD from the underlying Morpho Blue market. Cosign caps deposits into its vaults, not borrowing. MEZO is valued at a team-set demo price, not a market price.</p>
           </div>
           <dl className="borrow-facts">
             <div><dt>Bold MEZO</dt><dd className="num">77%</dd><span>max loan-to-value</span></div>

@@ -196,7 +196,7 @@ export function MarketDetail(ctx: Ctx & { vault: Address; tab: "lend" | "borrow"
               <Row k="Co-signer premium">{pct(m.premiumBps, 0)} of lender interest</Row>
               <Row k="Cover withdrawal notice">{Number(m.cooldown) / 60} minutes, then {Number(m.withdrawWindow) / 3600} h to withdraw</Row>
               <Row k="Reward split">{pct(m.rewardJuniorBps, 0)} cover · {pct(10_000n - m.rewardJuniorBps, 0)} lenders</Row>
-              <Row k="MEZO price">{fmt(price / WAD, 2)} MUSD · demo oracle (team-controlled)</Row>
+              <Row k="MEZO price">{fmt(price / WAD, 2)} MUSD · team-set demo price, not a market price</Row>
               <Row k="Vault"><a href={addrUrl(m.vault)} target="_blank" rel="noreferrer">{m.vault.slice(0, 10)}… <ArrowNE size={12} /></a></Row>
               <Row k="Morpho Blue"><a href={addrUrl(d.morpho)} target="_blank" rel="noreferrer">{d.morpho.slice(0, 10)}… <ArrowNE size={12} /></a></Row>
             </dl>
@@ -351,10 +351,20 @@ function LendPanel({ m, user, account, send, approveIfNeeded, connect, d, busy }
 
 type BorrowTab = "collateral" | "borrow" | "repay" | "withdraw";
 
+/** Shown before any borrowing: every borrow figure rests on a price the team sets, not a market price. */
+function DemoPrice({ price }: { price: bigint }) {
+  return (
+    <p className="note">
+      <b>Demo price.</b> The Cosign team sets MEZO at {price > 0n ? <b className="num">{fmt(price / WAD, 2)} MUSD</b> : "a fixed price"} for this
+      testnet demo. It is not a market price, so collateral values and borrow limits here are illustrative.
+    </p>
+  );
+}
+
 function BorrowPanel({ m, user, account, send, approveIfNeeded, connect, d, price, busy }: Ctx & { m: MarketState }) {
   const [sub, setSub] = useState<BorrowTab>("collateral");
   const [v, setV] = useState<Record<BorrowTab, string>>({ collateral: "", borrow: "", repay: "", withdraw: "" });
-  if (!account) return <ConnectGate connect={connect} what="borrow" />;
+  if (!account) return <><DemoPrice price={price} /><ConnectGate connect={connect} what="borrow" /></>;
   const me = user?.perVault[m.vault];
   const debt = me ? debtOf(me.borrowShares, m) : 0n;
   const value = me ? collateralValue(me.collateral, price) : 0n;
@@ -412,6 +422,7 @@ function BorrowPanel({ m, user, account, send, approveIfNeeded, connect, d, pric
 
   return (
     <div className="action">
+      <DemoPrice price={price} />
       <dl className="rows">
         <Row k="Collateral">{user ? `${fmt(me?.collateral ?? 0n, 4)} MEZO` : "…"}{value > 0n && <small> ≈ {fmt(value)} MUSD</small>}</Row>
         <Row k="Debt">{user ? `${fmt(debt)} MUSD` : "…"}</Row>
@@ -445,7 +456,7 @@ function BorrowPanel({ m, user, account, send, approveIfNeeded, connect, d, pric
       <button className="btn btn-dark btn-block" disabled={busy || amt === 0n || !!err || !user} onClick={run}>
         {amt === 0n ? verb : needApproval && !approved ? `Approve ${fmt(approveAmt, dp)} ${unit}` : `${verb} ${fmt(full ? debt : amt, dp)} ${unit}`}
       </button>
-      <p className="risk-line">At {lltvText(m)} loan-to-value your collateral can be liquidated. The MEZO price comes from a team-controlled demo oracle.</p>
+      <p className="risk-line">At {lltvText(m)} loan-to-value your collateral can be liquidated.</p>
     </div>
   );
 }

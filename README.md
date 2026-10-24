@@ -108,7 +108,7 @@ All addresses, IRMs and Mezo's own MUSD, MEZO and veBTC addresses: [`contracts/d
 
 | What | How | Result |
 |---|---|---|
-| Contract tests | `cd contracts && forge test` | 40 pass, 0 fail (unit, edge, adversarial and fuzz; [`docs/test-results.txt`](docs/test-results.txt)) |
+| Contract tests | `cd contracts && forge test` | 51 pass, 0 fail, 1 opt-in fork test skipped (unit, edge, adversarial, fuzz and the experimental Pyth oracle; [`docs/test-results.txt`](docs/test-results.txt)) |
 | Frontend money-math checks, type check, build | `cd web && npm run check && npm run build` | Pass (also run in CI) |
 | Dependency audit (production) | `cd web && npm audit --omit=dev` | 0 vulnerabilities |
 | Deployment against the chain | `python -I contracts/script/verify_deploy.py` | 43/43 |
@@ -143,7 +143,8 @@ A person signed every transaction in the Rabby browser extension, and a read-onl
 | [`CosignVault`](contracts/src/CosignVault.sol) | One per market. Senior and junior share accounting, interest split with a junior premium, loss waterfall, cover exit rules, reward streaming. Supplies MUSD to the Morpho market. |
 | [`CosignGauge`](contracts/src/CosignGauge.sol) | Reads live veBTC power, caps each market's weight by its cover, distributes self-funded MEZO by weight each epoch. |
 | [`CosignLiquidator`](contracts/src/CosignLiquidator.sol) | Syncs the vault, liquidates on Morpho, syncs again, so interest is booked before a loss is applied. |
-| [`AdminOracle`](contracts/src/AdminOracle.sol) | Owner-set price. **Demo only**: it exists so a price crash can be shown on testnet. |
+| [`AdminOracle`](contracts/src/AdminOracle.sol) | Owner-set price. **Demo only**: it exists so a price crash can be shown on testnet. Both markets use it today, at 10 MUSD per MEZO. |
+| [`CosignPythOracle`](contracts/src/CosignPythOracle.sol) | **Experimental, not deployed; no market uses it.** Wave 2 candidate: MEZO/USD ÷ MUSD/USD from Pyth, refusing stale, non-positive or low-confidence prices. Findings and plan: [docs/PYTH_ORACLE_PLAN.md](docs/PYTH_ORACLE_PLAN.md). |
 | [`FixedRateIrm`](contracts/src/FixedRateIrm.sol) | Fixed-APR interest model for each market. |
 | Morpho Blue | Vendored at commit `9cf6d5b`, deployed unmodified as our own instance. |
 
@@ -176,14 +177,14 @@ What they do **not** guarantee:
 - **Protection beyond the cover.** A larger loss falls on the lenders still in the vault. Lenders who withdrew before it was realised are not charged, so those who stay bear more.
 - **That cover stays.** A co-signer whose notice period has ended can leave before a loss is booked.
 - **A borrowing limit.** The leverage rule caps deposits into a Cosign vault, not borrowing on the Morpho market; borrowing is not paused when a vault is under-covered.
-- **Price integrity.** The oracle is a single-owner demo oracle. A production market needs a decentralised one.
+- **Price integrity.** MEZO is valued at a price the deployer sets on a single-owner demo oracle: 10 MUSD per MEZO. It is not a market price (Pyth's MEZO/USD read about 0.0033 USD on 24 October 2026), so collateral values and borrow limits are illustrative. A Pyth-based oracle is built and fork-tested but not deployed; its Wave 2 dependencies are in [docs/PYTH_ORACLE_PLAN.md](docs/PYTH_ORACLE_PLAN.md).
 - **Operational trust on testnet.** Morpho's owner on this instance is the deployer account.
 
 Findings and open items are in [docs/TESTNET_REPORT.md](docs/TESTNET_REPORT.md). To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## Roadmap
 
-Candidates, none of which is built: an independent audit of the vault and gauge accounting; a production price source and borrowing gated on cover; settling losses at liquidation time so exits just before realisation cannot shift losses onto stayers; Mezo mainnet readiness (parameter review, monitoring, keeper operation).
+Candidates, none of which is built: an independent audit of the vault and gauge accounting; a production price source (a Pyth oracle is built and fork-tested, not deployed; see the Wave 2 dependencies in [docs/PYTH_ORACLE_PLAN.md](docs/PYTH_ORACLE_PLAN.md)) and borrowing gated on cover; settling losses at liquidation time so exits just before realisation cannot shift losses onto stayers; Mezo mainnet readiness (parameter review, monitoring, keeper operation).
 
 ## Licensing and credits
 

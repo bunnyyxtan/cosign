@@ -1,7 +1,8 @@
 # Replacing the demo oracle with Pyth: findings and migration plan
 
-Status, 24 October 2026: **study only.** Nothing was deployed, no price was changed, no liquidity moved and no transaction
-was signed. The contract and tests below exist in the repository; the live app still runs on `AdminOracle`.
+Status, 24 October 2026: **experimental and not deployed.** Wave 1 keeps the `AdminOracle` demo price (10 MUSD per MEZO,
+set by the team). Nothing was deployed, no price was changed, no liquidity moved and no transaction was signed. The
+contract and tests below are in the repository only; no market uses `CosignPythOracle`.
 
 ## 1. The feeds, read live on Mezo testnet
 
@@ -117,7 +118,25 @@ Nothing is borrowed on either market, so all lending can be withdrawn at once.
 | Acceptance evidence | medium | Every wallet PASS row names the old vaults. Journeys B, C, D and E would need to be run again on the new markets. |
 | App changes | medium | The `bold`/`steady` slugs would point at new vaults, the old vaults would need to stay as evidence, the oracle text ("team-controlled demo oracle") would need rewriting, and the app would need to show a price as stale and explain the freeze. |
 
-## 6. Recommendation and exact migration plan
+## 6. Wave 2 dependencies
+
+Migration starts only when all five are in place:
+
+1. **Reliable Pyth updates.** MEZO/USD and MUSD/USD keep updating on `0x933a…1315` within `maxAge`. Either confirm the
+   sponsored pusher's schedule with Mezo or Pyth, or run Cosign's own pusher with a funded keeper and an alert when a
+   feed ages past 30 minutes.
+2. **API access.** A Hermes API key from Pyth Terminal for our own pusher and for fresh-price liquidations. Pyth offers a
+   free trial, then paid plans. The founder signs up; nothing is bought without approval.
+3. **Realistic collateral sizing.** At about 0.0034 MUSD per MEZO, a 250 MUSD loan needs about 100,000 MEZO. Find a source
+   of testnet MEZO, or size demo loans to the MEZO that exists. Then restate every borrow figure in the app and docs at
+   the real price.
+4. **Revised risk parameters.** MEZO moved up to 69% within an hour this week, and prices can be up to an hour old.
+   Choose LLTVs (a new value needs a Morpho owner transaction), `maxAge`, `maxConfBps` and minimum cover (`maxLeverage`)
+   so that a fall of that size is absorbed by cover on the thicker market.
+5. **A safe market migration.** Follow section 7: new oracle, markets and vaults beside the old ones, the old vaults kept
+   as evidence, positions moved by their owners one transaction at a time, then acceptance run again.
+
+## 7. Recommendation and exact migration plan
 
 **Wave 1: keep `AdminOracle`.** Say plainly in the app and the submission that a Pyth oracle is built and tested on a
 fork, and that it is planned for Wave 2. **Wave 2: migrate, if the demo-MEZO and pusher questions have answers.**
