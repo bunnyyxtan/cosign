@@ -3,7 +3,7 @@ import { formatUnits, type Address } from "viem";
 import { allowanceKey, type MarketState, type UserState } from "../chain";
 
 export * from "./math";
-import { fmt, minCoverBps, pct } from "./math";
+import { fmt, fmtDown, minCoverBps, pct } from "./math";
 
 export function Figure({ k, v, unit, sub, tone }: { k: string; v: string; unit?: string; sub?: React.ReactNode; tone?: "loss" | "cover" }) {
   return (
@@ -49,7 +49,7 @@ export function Stack({ m, lost = 0n, lostSenior = 0n, senior, junior, scale, co
   const vault = s + j;
   // minimum cover drawn at its share of the current vault, so it reads against the cover segment
   const minAt = vault > 0n ? (Number(formatUnits(vault, 18)) * (Number(minCoverBps(m)) / 10_000)) / total : 0;
-  const label = `Cover ${fmt(j)} MUSD in front of ${fmt(s)} MUSD of lender deposits${room > 0n ? `, ${fmt(room)} MUSD room to lend` : ""}. Minimum cover ${pct(minCoverBps(m), 0)} of the vault.`;
+  const label = `Cover ${fmt(j)} MUSD in front of ${fmt(s)} MUSD of lender deposits${room > 0n ? `, ${fmtDown(room)} MUSD room to lend` : ""}. Minimum cover ${pct(minCoverBps(m), 0)} of the vault.`;
   return (
     <figure className={`astack ${compact ? "is-compact" : ""}`}>
       <div className="astack-bar" role="img" aria-label={vault + room === 0n ? "No cover or lender deposits yet" : label}>
@@ -65,7 +65,7 @@ export function Stack({ m, lost = 0n, lostSenior = 0n, senior, junior, scale, co
         <figcaption className="astack-key">
           <span><i className="sw sw-cover" />Cover {fmt(j)}</span>
           <span><i className="sw sw-senior" />Lenders {fmt(s)}</span>
-          {room > 0n && <span><i className="sw sw-room" />Room to lend {fmt(room)}</span>}
+          {room > 0n && <span><i className="sw sw-room" />Room to lend {fmtDown(room)}</span>}
           {lost + lostSenior > 0n && <span><i className="sw sw-lost" />Loss {fmt(lost + lostSenior)}</span>}
           <span className="astack-mink"><i className="sw-min" />Minimum cover {pct(minCoverBps(m), 0)}</span>
         </figcaption>

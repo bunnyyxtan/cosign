@@ -6,7 +6,7 @@ import { Art } from "../ui/Art";
 import type { Ctx } from "./ctx";
 import { href, keepUrl } from "./routes";
 import {
-  allowanceOf, Amount, aprs, apr, collateralOut, collateralValue, coverShortfall, debtOf, Figure, fmt, ltvBps, marketKey, marketStatus, minCoverBps, PageHead, pct, pctTrim,
+  allowanceOf, Amount, aprs, apr, collateralOut, collateralValue, coverShortfall, debtOf, Figure, fmt, fmtDown, ltvBps, marketKey, marketStatus, minCoverBps, PageHead, pct, pctTrim,
   Row, Stack, toWei, TwoStep, up2, WAD,
 } from "./ui";
 
@@ -71,7 +71,7 @@ export function Markets({ markets, gauge, losses, lossesFailed, user }: Ctx) {
               <dl className="figs figs-3">
                 <Figure k="Market cover" v={fmt(m.junior)} unit="MUSD" sub={`${pct(m.coverageBps)} · minimum ${pct(minCoverBps(m), 0)}`} tone="cover" />
                 <Figure k="Lender deposits" v={fmt(m.senior)} unit="MUSD" />
-                <Figure k="Available to lend" v={fmt(m.capacity)} unit="MUSD" />
+                <Figure k="Available to lend" v={fmtDown(m.capacity)} unit="MUSD" />
                 <Figure k="Borrowed" v={fmt(m.totalBorrow)} unit="MUSD" sub={borrowedText(m)} />
                 <Figure k="Lender APR" v={apr(a.senior)} sub={aprSub(m)} />
                 <Figure k="Co-signer APR" v={apr(a.junior)} sub="from interest, excl. MEZO" />
@@ -144,7 +144,7 @@ export function MarketDetail(ctx: Ctx & { vault: Address; tab: "lend" | "borrow"
             <dl className="figs figs-auto">
               <Figure k="Market cover" v={fmt(m.junior)} unit="MUSD" sub={`${pct(m.coverageBps)} of the vault`} tone="cover" />
               <Figure k="Lender deposits" v={fmt(m.senior)} unit="MUSD" />
-              <Figure k="Available to lend" v={fmt(m.capacity)} unit="MUSD" />
+              <Figure k="Available to lend" v={fmtDown(m.capacity)} unit="MUSD" />
               <Figure k="Borrowed" v={fmt(m.totalBorrow)} unit="MUSD" sub={borrowedText(m)} />
               <Figure k="Lender APR" v={apr(a.senior)} sub={aprSub(m)} />
               <Figure k="Co-signer APR" v={apr(a.junior)} sub="from interest, excl. MEZO" />
@@ -307,8 +307,8 @@ function LendPanel({ m, user, account, send, approveIfNeeded, connect, d, busy }
     <div className="action">
       <dl className="rows">
         {account && <Row k="Your deposits">{user ? `${fmt(me?.senior ?? 0n)} MUSD` : "…"}</Row>}
-        {account && <Row k="Wallet">{user ? `${fmt(user.musd)} MUSD` : "…"}</Row>}
-        <Row k="Available to lend">{fmt(m.capacity)} MUSD</Row>
+        {account && <Row k="Wallet">{user ? `${fmtDown(user.musd)} MUSD` : "…"}</Row>}
+        <Row k="Available to lend">{fmtDown(m.capacity)} MUSD</Row>
       </dl>
       {closed ? (
         <div className="status-box">
@@ -320,8 +320,8 @@ function LendPanel({ m, user, account, send, approveIfNeeded, connect, d, busy }
       <div className="field">
         <label htmlFor="lend">Deposit</label>
         <Amount id="lend" value={dep} onChange={setDep} unit="MUSD" max={user && user.musd < m.capacity ? user.musd : m.capacity} invalid={tooMuch || overWallet} />
-        {tooMuch ? <span className="field-hint is-error">Only {fmt(m.capacity)} MUSD available to lend. More cover opens more room.</span>
-          : overWallet ? <span className="field-hint is-error">Your wallet has {fmt(user!.musd)} MUSD.</span> : null}
+        {tooMuch ? <span className="field-hint is-error">Only {fmtDown(m.capacity)} MUSD available to lend. More cover opens more room.</span>
+          : overWallet ? <span className="field-hint is-error">Your wallet has {fmtDown(user!.musd)} MUSD.</span> : null}
       </div>
       {depWei > 0n && !tooMuch && !overWallet && user && <TwoStep approve="MUSD" action="Deposit" done={approved} />}
       <button className="btn btn-dark btn-block" disabled={busy || depWei === 0n || tooMuch || overWallet || !user}
@@ -375,11 +375,11 @@ function BorrowPanel({ m, user, account, send, approveIfNeeded, connect, d, pric
   const clear = () => setV({ ...v, [sub]: "" });
   const tabs: [BorrowTab, string, boolean][] = [["collateral", "Add MEZO", true], ["borrow", "Borrow", true], ["repay", "Repay", debt > 0n], ["withdraw", "Withdraw", (me?.collateral ?? 0n) > 0n]];
   const err =
-    sub === "collateral" && user && amt > user.mezo ? `Your wallet has ${fmt(user.mezo, 4)} MEZO.`
+    sub === "collateral" && user && amt > user.mezo ? `Your wallet has ${fmtDown(user.mezo, 4)} MEZO.`
     : sub === "borrow" && amt > room ? (value === 0n ? "Add collateral first." : `Above your borrow limit: up to ${fmt(room)} MUSD more.`)
     : sub === "borrow" && amt > liquidity ? `Only ${fmt(liquidity)} MUSD is unborrowed in this market.`
     : sub === "repay" && amt > debt + debt / 1000n + 1n ? `Your debt is ${fmt(debt)} MUSD.`
-    : sub === "repay" && user && amt > user.musd ? `Your wallet has ${fmt(user.musd)} MUSD.`
+    : sub === "repay" && user && amt > user.musd ? `Your wallet has ${fmtDown(user.musd)} MUSD.`
     : sub === "withdraw" && me && amt > me.collateral ? `You have ${fmt(me.collateral, 4)} MEZO posted.`
     : sub === "withdraw" && debt > 0n && !out.known && amt > 0n ? "The MEZO price isn't available right now, so this withdrawal's safety can't be checked. Try again shortly."
     : sub === "withdraw" && debt > 0n && amt > out.max ? (out.max === 0n ? "Your loan needs all of this collateral. Repay some debt first." : `Above the most you can withdraw (${fmt(out.max, 4)} MEZO) while your debt stays.`)
@@ -432,7 +432,7 @@ function BorrowPanel({ m, user, account, send, approveIfNeeded, connect, d, pric
         {err ? <span className="field-hint is-error">{err}</span>
           : sub === "borrow" ? <span className="field-hint">{liquidity === 0n ? "No unborrowed MUSD in this market right now." : `Fixed ${apr(Number(m.borrowApr) / 1e18)} APR · up to ${fmt(room < liquidity ? room : liquidity)} MUSD more`}</span>
           : sub === "withdraw" && debt > 0n ? <span className="field-hint">Max keeps loan-to-value at 85% of the {lltvText(m)} limit. Withdrawing more moves the loan closer to liquidation.</span>
-          : sub === "collateral" && user ? <span className="field-hint">Wallet {fmt(user.mezo, 4)} MEZO</span> : null}
+          : sub === "collateral" && user ? <span className="field-hint">Wallet {fmtDown(user.mezo, 4)} MEZO</span> : null}
       </div>
       {sub === "withdraw" && debt > 0n && out.known && (
         <dl className="rows">

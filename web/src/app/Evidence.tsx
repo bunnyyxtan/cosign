@@ -6,6 +6,16 @@ import { ArrowNE } from "../ui/Icon";
 import type { Ctx } from "./ctx";
 import { PageHead, short } from "./ui";
 
+// Why each recorded failure happened, from "Notes on the failed checks" in docs/TESTNET_EVIDENCE.md. The run is kept as recorded.
+const WHY: Record<string, string> = {
+  "Junior shares and cover recorded": "Script error: a lost RPC receipt made the script deposit twice, so cover was 20 MUSD, not 10. The vault recorded both deposits correctly.",
+  "Senior book not reduced by the loss": "Script error: the check compared against a preview that included interest not yet booked. Booked principal was unchanged; the direct Morpho liquidation absorbed 0.000004 MUSD of unbooked interest.",
+  "Senior share value unchanged or higher": "Script error: same unbooked-interest preview as above. Booked principal was unchanged.",
+  "Lender cannot double claim": "Script error: the check ignored that rewards stream every second, so the resumed run saw a different pending amount. Exactness is checked at the end of the stream: claims plus the vault remainder equal the MEZO distributed.",
+  "Cosigner claim paid": "Script error: the check ignored that rewards stream every second, so the resumed run saw a different pending amount. Exactness is checked at the end of the stream: claims plus the vault remainder equal the MEZO distributed.",
+  "Cosigner cannot double claim": "Script error: the check ignored that rewards stream every second, so the resumed run saw a different pending amount. Exactness is checked at the end of the stream: claims plus the vault remainder equal the MEZO distributed.",
+};
+
 export function Evidence({ d, demo }: Ctx) {
   const [all, setAll] = useState(false);
   const checks = demo?.checks ?? [];
@@ -31,11 +41,11 @@ export function Evidence({ d, demo }: Ctx) {
             <h2 id="chk-h" className="panel-title">Checks recorded during the run</h2>
             <span className="chip chip-recorded">{checks.filter((c) => c.pass).length} / {checks.length} passed</span>
           </div>
-          <p className="t-small">Each check read contract state at the block shown. Failures are kept, with what was wrong.</p>
+          <p className="t-small">Each check read contract state at the block shown. Failures are kept as recorded, each with its cause.</p>
           {failed.length > 0 && (
             <ul className="checks">
               {failed.map((c, i) => (
-                <li key={i}><span className="chip chip-loss chip-plain">Fail</span><span><b>{c.check}</b> {c.detail}{c.note && <em> {c.note}</em>}</span></li>
+                <li key={i}><span className="chip chip-loss chip-plain">Fail</span><span><b>{c.check}</b> {c.detail}{(c.note ?? WHY[c.check]) && <em> {c.note ?? WHY[c.check]}</em>}</span></li>
               ))}
             </ul>
           )}

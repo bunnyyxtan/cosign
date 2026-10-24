@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { gaugeAbi, vaultAbi } from "../chain";
 import type { Ctx } from "./ctx";
 import { ConnectGate } from "./Markets";
-import { allowanceOf, Amount, fmt, PageHead, pct, toWei, TwoStep, voteOutcome, voteSplit } from "./ui";
+import { allowanceOf, Amount, fmt, fmtDown, PageHead, pct, toWei, TwoStep, voteOutcome, voteSplit } from "./ui";
 import { href } from "./routes";
 
 function useNow(ms = 1000) {
@@ -36,7 +36,7 @@ export function Rewards(ctx: Ctx) {
           <span className="kpi-s num">{gauge ? left(ends) : ""}</span>
         </div>
         <div><dt>Your voting power</dt><dd className="num">{account ? (user ? (user.veTokens.length ? fmt(power, 6) : <span className="kpi-word">No veBTC</span>) : "…") : "—"}</dd></div>
-        <div><dt>Wallet</dt><dd className="num">{account && user ? fmt(user.mezo, 4) : "—"} <small>MEZO</small></dd></div>
+        <div><dt>Wallet</dt><dd className="num">{account && user ? fmtDown(user.mezo, 4) : "—"} <small>MEZO</small></dd></div>
       </dl>
 
       <div className="split">
@@ -114,7 +114,7 @@ function FundForm({ user, gauge, send, approveIfNeeded, d, busy }: Ctx) {
         <div className="field">
           <label htmlFor="fund">MEZO to add to epoch {gauge?.epoch.toString()}</label>
           <Amount id="fund" value={amt} onChange={setAmt} unit="MEZO" max={user?.mezo} invalid={over} />
-          {over && <span className="field-hint is-error">Your wallet has {fmt(user!.mezo, 4)} MEZO.</span>}
+          {over && <span className="field-hint is-error">Your wallet has {fmtDown(user!.mezo, 4)} MEZO.</span>}
         </div>
         {wei > 0n && !over && user && <TwoStep approve="MEZO" action="Fund" done={approved} />}
         <button className="btn btn-dark btn-block" disabled={busy || wei === 0n || over || !user}

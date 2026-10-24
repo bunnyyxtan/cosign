@@ -3,7 +3,7 @@ import { ArrowNE } from "../ui/Icon";
 import type { Ctx } from "./ctx";
 import { ConnectGate } from "./Markets";
 import { ExitLabel } from "./Cosign";
-import { collateralValue, coverExit, debtOf, fmt, fmtCoverShare, ltvBps, PageHead, pct, pctTrim, Row, short, WAD } from "./ui";
+import { collateralValue, coverExit, debtOf, fmt, fmtCoverShare, fmtDown, ltvBps, PageHead, pct, pctTrim, Row, short, WAD } from "./ui";
 import type { Slug } from "./routes";
 import { href } from "./routes";
 
@@ -39,9 +39,9 @@ export function Portfolio({ user, account, connect, markets, price, activity }: 
       </PageHead>
 
       <dl className="kpis card card-white">
-        <div><dt>MUSD</dt><dd className="num">{user ? fmt(user.musd) : "…"}</dd></div>
-        <div><dt>MEZO</dt><dd className="num">{user ? fmt(user.mezo, 4) : "…"}</dd></div>
-        <div><dt>BTC <small>for network fees</small></dt><dd className="num">{user ? fmt(user.btc, 6) : "…"}</dd></div>
+        <div><dt>MUSD</dt><dd className="num">{user ? fmtDown(user.musd) : "…"}</dd></div>
+        <div><dt>MEZO</dt><dd className="num">{user ? fmtDown(user.mezo, 4) : "…"}</dd></div>
+        <div><dt>BTC <small>for network fees</small></dt><dd className="num">{user ? fmtDown(user.btc, 6) : "…"}</dd></div>
         <div><dt>veBTC voting power</dt><dd className="num">{user ? (user.veTokens.length ? fmt(power, 6) : "—") : "…"}</dd></div>
       </dl>
 

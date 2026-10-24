@@ -327,7 +327,7 @@ function Evidence() {
         <div className="evidence-left" data-reveal>
           <span className="eyebrow">See it for yourself<span className="idx">/ 06</span></span>
           <h2 id="ev-title" className="t-display">Trust less.<br />Verify more.</h2>
-          <p className="t-lede">The waterfall ran on Mezo testnet. Every number on this page links to the transaction that produced it.</p>
+          <p className="t-lede">The waterfall ran on Mezo testnet. Every recorded event below links to the transaction that produced it.</p>
           <a className="btn btn-white btn-lg" href={EVIDENCE} target="_blank" rel="noreferrer">Open the full evidence <ArrowNE /></a>
         </div>
         <div className="evidence-right" data-reveal style={css({ "--i": 1 })}>

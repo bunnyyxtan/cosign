@@ -7,7 +7,7 @@ import { ConnectGate, MarketStatus } from "./Markets";
 import type { ExitKind } from "./math";
 import { href, keepUrl } from "./routes";
 import {
-  allowanceOf, Amount, coverExit, coverFreeAfter, coverShortfall, down2, fmt, fmtCoverShare, minCoverBps, PageHead, pct, roomAfterCover,
+  allowanceOf, Amount, coverExit, coverFreeAfter, coverShortfall, down2, fmt, fmtCoverShare, fmtDown, minCoverBps, PageHead, pct, roomAfterCover,
   Row, sharesForCover, Stack, toWei, TwoStep, up2,
 } from "./ui";
 
@@ -151,12 +151,12 @@ function CoverActions(ctx: Ctx & { m: MarketState }) {
         <div className="action">
           <dl className="rows">
             <Row k="Your cover">{user ? `${fmt(me?.junior ?? 0n)} MUSD` : "…"}</Row>
-            <Row k="Wallet">{user ? `${fmt(user.musd)} MUSD` : "…"}</Row>
+            <Row k="Wallet">{user ? `${fmtDown(user.musd)} MUSD` : "…"}</Row>
           </dl>
           <div className="field">
             <label htmlFor={`cov-${m.vault}`}>Cover to post</label>
             <Amount id={`cov-${m.vault}`} value={dep} onChange={setDep} unit="MUSD" max={user?.musd} invalid={overWallet} />
-            {overWallet ? <span className="field-hint is-error">Your wallet has {fmt(user!.musd)} MUSD.</span>
+            {overWallet ? <span className="field-hint is-error">Your wallet has {fmtDown(user!.musd)} MUSD.</span>
               : coverHint(m, amount) && <span className="field-hint">{coverHint(m, amount)}</span>}
           </div>
           {amount > 0n && !overWallet && user && <TwoStep approve="MUSD" action="Post cover" done={approved} />}

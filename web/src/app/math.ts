@@ -64,6 +64,8 @@ export const coverForShares = (shares: bigint, m: MarketState) => (shares * (m.j
 
 /** Rounds down to the cent, so room and withdrawable amounts are never overstated. */
 export const down2 = (v: bigint) => (v / 10n ** 16n) * 10n ** 16n;
+/** A limit an amount is checked against (a wallet balance, room to lend), rounded down so typing it never fails. */
+export const fmtDown = (v: bigint, dp = 2) => fmt((v / 10n ** BigInt(18 - dp)) * 10n ** BigInt(18 - dp), dp);
 
 /** Cover the current lenders require: lenders may hold at most maxLeverage x cover. Rounded up to the wei. */
 const coverNeeded = (m: MarketState) => (m.maxLeverage === 0n ? 0n : (m.senior + m.maxLeverage - 1n) / m.maxLeverage);

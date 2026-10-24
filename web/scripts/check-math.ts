@@ -1,6 +1,6 @@
 // node scripts/check-math.ts — asserts the cover-shortfall and rounding rules the app shows to users.
 import assert from "node:assert/strict";
-import { voteSplit, voteOutcome, borrowLimit, collateralOut, collateralValue, coverExit, coverForShares, debtOf, ltvBps, marketStatus, coverFreeAfter, coverShareBps, coverShortfall, down2, fmt, fmtCoverShare, minCoverBps, pctTrim, roomAfterCover, sharesForCover, up2 } from "../src/app/math.ts";
+import { voteSplit, voteOutcome, borrowLimit, collateralOut, collateralValue, coverExit, coverForShares, debtOf, ltvBps, marketStatus, coverFreeAfter, coverShareBps, coverShortfall, down2, fmt, fmtCoverShare, fmtDown, minCoverBps, pctTrim, roomAfterCover, sharesForCover, up2 } from "../src/app/math.ts";
 
 const E = 10n ** 18n;
 // Bold MEZO as read on 21 Oct 2026: 1,000.0000532 MUSD senior behind 39.3999468 MUSD cover, 19x cap
@@ -141,4 +141,9 @@ assert.equal(tiny[VS].weight, PW / 100n, "below the cap, effective weight is the
 assert.ok(!tiny[VS].capped);
 assert.equal(voteOutcome(live, mine402, PW, { vaults: [], weights: [] })[VB].votes, 924867283625064n - 178170524628642n, "nothing chosen: only the reset");
 
+// limits a typed amount is checked against are shown rounded down, so typing the shown figure never fails
+assert.equal(fmtDown(33_598_946_478_778_499_151n), "33.59"); // Bold room to lend, 23 Oct 2026 (fmt rounds it up to 33.60)
+assert.equal(fmtDown(19_999_998_000_000_000_000n), "19.99"); // founder MUSD after Journey 4
+assert.equal(fmtDown(98_165_441_000_000_000_000n, 4), "98.1654");
+assert.equal(fmtDown(35n * E), "35.00");
 console.log("math ok");
