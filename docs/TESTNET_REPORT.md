@@ -1,6 +1,8 @@
-# Cosign v2: testnet status report
+# Cosign v2: historical testnet status report
 
-20 October 2026. Mezo testnet, chain 31611. Unaudited prototype; no mainnet transactions, no real funds. Every figure comes from chain state or transaction logs; the full tables are in [`TESTNET_EVIDENCE.md`](TESTNET_EVIDENCE.md), generated from the recorded run. The archived v1 report is [`archive/TESTNET_REPORT_v1.md`](archive/TESTNET_REPORT_v1.md).
+**Historical snapshot: 20 October 2026.** Mezo testnet, chain 31611. The results below describe that recorded v2 run and have not been rewritten as a newer test execution. Cosign is an unaudited prototype; there were no mainnet transactions or real funds. Every figure comes from chain state or transaction logs; the full tables are in [`TESTNET_EVIDENCE.md`](TESTNET_EVIDENCE.md), generated from the recorded run. The archived v1 report is [`archive/TESTNET_REPORT_v1.md`](archive/TESTNET_REPORT_v1.md).
+
+For current status, use the [project README](../README.md); for the latest contract result, use [`test-results.txt`](test-results.txt); for real-wallet evidence, use [`WALLET_ACCEPTANCE.md`](WALLET_ACCEPTANCE.md); and for current addresses, use [`contracts/deployments/31611.json`](../contracts/deployments/31611.json).
 
 ## What changed from v1
 
@@ -25,7 +27,7 @@ Checks: 52 pass, 6 fail as recorded. The failures are kept in the evidence with 
 
 | Item | Result |
 |---|---|
-| Foundry | 40 pass, 0 fail, 2,000 fuzz runs (at this report; 51 pass now, with the experimental, undeployed Pyth oracle) |
+| Foundry | 40 pass, 0 fail, 2,000 fuzz runs in the 20 October report. See [`test-results.txt`](test-results.txt) for the latest, separately recorded result. |
 | Frontend `tsc` and production build | Pass |
 | `npm audit --omit=dev` | 0 vulnerabilities |
 | Deployment verification against chain | 43/43 |
@@ -41,7 +43,7 @@ Checks: 52 pass, 6 fail as recorded. The failures are kept in the evidence with 
 | First-loss waterfall on a real liquidation | PASS | Measured twice |
 | Self-funded rewards reconcile | PASS | Exact to the wei at end of stream |
 | UI claims no stronger guarantee than the contracts | PASS | Guarantee panel states the limits |
-| Real-wallet acceptance on testnet (Rabby) | **PARTIAL** (since 23 October) | A person has signed the connect and reload flows, cover and lender deposits, the full borrow lifecycle, senior withdrawals and a partial cover withdrawal in Rabby, each verified onchain: see [`WALLET_ACCEPTANCE.md`](WALLET_ACCEPTANCE.md) for every row, hash and the rows still open (voting and rewards, a second wallet, a first-time tester). OKX Wallet has not been run |
+| Real-wallet acceptance on testnet (Rabby) | **PARTIAL** (subsequent evidence, not part of the 20 October run) | See [`WALLET_ACCEPTANCE.md`](WALLET_ACCEPTANCE.md) for the current PASS, PARTIAL and NOT RUN counts and every supported transaction hash. That living log supersedes older summaries of which rows remained open; OKX Wallet has not been run. |
 | Independent audit | **NOT DONE** | Required before any mainnet use |
 | Production oracle | **BLOCKED for mainnet** | Single-owner demo oracle |
 | Direct-liquidation interest netting | Known limit | Bounded by interest since last sync; fixed only for the liquidator path |
@@ -49,4 +51,4 @@ Checks: 52 pass, 6 fail as recorded. The failures are kept in the evidence with 
 | Borrowing not capped by cover | Known limit | The 19× rule caps vault deposits only |
 | Morpho GPL libraries and Cosign's MIT licence | Open | See `NOTICE.md`; needs legal review |
 
-Nothing here is a blocker for external evaluation on testnet. Items marked BLOCKED or NOT DONE are blockers for any launch with real funds.
+This historical report supports external evaluation of the recorded testnet work. Items marked BLOCKED or NOT DONE are blockers for any launch with real funds; the current project status and limitations are maintained in the [README](../README.md).

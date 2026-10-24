@@ -432,7 +432,7 @@ function Footer() {
       <div className="wrap footer-in">
         <div className="footer-brand">
           <Wordmark href="#top" />
-          <p className="t-small">Credit ratings with skin in the game.</p>
+          <p className="t-small">First-loss lending markets, backed by real capital.</p>
         </div>
         <nav aria-label="Footer">
           <span className="eyebrow">Explore</span>

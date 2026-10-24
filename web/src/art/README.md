@@ -1,10 +1,10 @@
-# Art slots
+# Production art slots
 
-Drop finished images here, named after their slot. They are picked up automatically at build time; no component changes.
+The six checked-in images in this directory are the current Wave 1 production artwork. They are used by the live site and match the repository screenshots; they are not pending placeholders.
 
-- Slots in use: `hero`, `lend`, `cosign`, `bold`, `steady`, `closing`. Add `<slot>.mobile.webp` for a phone-specific crop (optional).
-- Formats: `.avif`, `.webp`, `.jpg`, `.png` (first match wins in that order).
-- What each slot needs, and which provided files were accepted or rejected: `docs/ASSET_REVIEW.md`.
-- To change the crop of a delivered image, edit `focal` for that slot in `web/src/ui/Art.tsx`.
+- Slots in use: `hero`, `lend`, `cosign`, `bold`, `steady`, `closing`.
+- The slot loader also supports `.avif`, `.jpg` and `.png`, and an optional `<slot>.mobile.webp`; first match wins in that order.
+- Crop focal points live in `web/src/ui/Art.tsx`.
+- The original selection notes and high-resolution replacement brief are [archived for provenance](../../../docs/archive/ASSET_REVIEW_V1.md); they are not an active Wave 1 delivery requirement.
 
-Until a file exists, the slot shows a quiet tonal surface (and, in dev only, a label with its name and size).
+If a slot file is absent, the layout falls back to a quiet tonal surface (and, in development only, a label with its name and size).

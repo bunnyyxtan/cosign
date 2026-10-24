@@ -4,7 +4,7 @@ Cosign is an unaudited prototype on Mezo testnet. This document explains what it
 
 ## The idea in one paragraph
 
-A lending market asks lenders to trust a risk they cannot see: if a loan goes bad, who pays first, and how much of their own money have the people who vouched for the market put at stake? Cosign makes the answer visible and enforceable. A **co-signer** posts MUSD as **cover** in front of a market's lenders (no veBTC is needed for that) and, if they hold veBTC, votes for it. A loss is charged to cover first; lenders lose money only once the cover is gone. The cover also sets the credit limit: the market can only take deposits up to a multiple of it. **Vote = bond = credit limit.**
+Standard direct lending does not include Cosign's explicit junior tranche: if a loan leaves bad debt, there is no Cosign cover committed to pay first. Cosign makes that cover visible and enforceable. A **co-signer** posts MUSD as **cover** in front of a market's lenders (no veBTC is needed for that) and, if they hold veBTC, votes for it. A loss is charged to cover first; lenders lose money only once the cover is gone. The cover also sets the Cosign vault's deposit capacity: it can accept senior deposits only up to a multiple of posted cover. It does not cap borrowing on Morpho. **Vote = bond = vault deposit capacity.**
 
 Cosign does not replace a lending protocol. It sits in front of one market on [Morpho Blue](https://github.com/morpho-org/morpho-blue), unmodified.
 
@@ -13,7 +13,7 @@ Cosign does not replace a lending protocol. It sits in front of one market on [M
 | | A rating, badge or allowlist | Cosign cover |
 |---|---|---|
 | Who pays if the loan goes bad | Nobody who endorsed it | The co-signer, first, with posted MUSD |
-| What limits the market's size | A parameter someone sets | The cover itself: lenders are accepted only up to `maxLeverage × cover` |
+| What limits Cosign vault deposits | No Cosign-specific cover rule | The cover itself: senior deposits are accepted only up to `maxLeverage × cover` |
 | What a vote is worth | Free | Counts only up to what the voter's cover backs |
 | Can the endorser leave when trouble starts | Yes | Only after a notice period, and never below the market's minimum cover |
 
@@ -66,7 +66,7 @@ Not market data. A Bold-style vault with 1,000 MUSD of lenders and 52.6 MUSD of 
 - We deploy our **own instance** of Morpho Blue, vendored unmodified (commit `9cf6d5b`), and create the MUSD/MEZO markets on it. Morpho handles supply, borrowing, collateral, liquidation and bad-debt realisation.
 - A liquidation that leaves bad debt reduces the market's total supply; the vault sees the drop at its next sync and allocates it to cover first.
 - **Direct liquidations can net a little unbooked interest against the loss.** `CosignLiquidator` removes that: it syncs, liquidates, then syncs again. On the live run the difference was 0.000004 MUSD.
-- Anyone can also supply to the Morpho market directly, outside Cosign. They share bad debt pro rata with no cover in front of them. The demo market has only the vault as supplier.
+- Anyone can also supply to a Morpho market directly, outside Cosign. Those suppliers share bad debt pro rata and do not receive Cosign's junior-first protection. In the recorded deployment, each market had only its Cosign vault as supplier.
 - Whoever owns our Morpho instance can enable interest models and loan-to-value limits and set a fee on interest (0 today). That is disclosed; it cannot move anyone's principal.
 
 ## veBTC votes and self-funded MEZO rewards
@@ -107,7 +107,7 @@ See [Security and limitations](../README.md#security-and-limitations) for the fu
 
 ## Prior art
 
-First-loss capital is an established idea. Aave's Umbrella has stakers slashed to cover bad debt; Blend (Stellar) backs each isolated pool with a first-loss backstop; senior/junior tranching is decades old in traditional credit. What Cosign adds is that **the cover sets the credit limit** and **the vote only counts when backed by cover**, with veBTC holders as the underwriters.
+First-loss capital is an established idea. Aave's Umbrella has stakers slashed to cover bad debt; Blend (Stellar) backs each isolated pool with a first-loss backstop; senior/junior tranching is decades old in traditional credit. What Cosign adds is that **cover sets the Cosign vault's deposit capacity** and **the vote only counts when backed by cover**, with veBTC holders as the underwriters.
 
 ## How v2 differs from v1
 

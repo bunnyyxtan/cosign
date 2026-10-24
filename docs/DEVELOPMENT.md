@@ -14,15 +14,15 @@ How to build, test and change Cosign. Everything runs on Mezo testnet; nothing h
 | Path | What is in it |
 |---|---|
 | `contracts/src` | The Cosign contracts. See [PRODUCT.md](PRODUCT.md). |
-| `contracts/test` | Foundry unit, edge and adversarial tests (40 tests, with fuzzing). |
+| `contracts/test` | Foundry unit, edge, adversarial and Pyth-oracle tests (51 passing tests, plus 1 opt-in fork test skipped by default). |
 | `contracts/script` | `Deploy.s.sol`, the resumable live demo (`demo.py`), evidence and verification scripts, and [`acceptance/`](../contracts/script/acceptance), the read-only checkers used in the real-wallet sessions. |
 | `contracts/deployments` | Addresses and recorded runs. See its [README](../contracts/deployments/README.md). |
 | `contracts/broadcast` | Foundry broadcast logs for the deployment transactions. |
 | `web/src/site` | The website: chapters, the recorded loss replay. |
-| `web/src/app` | The app: markets, co-sign, rewards, positions, recorded evidence. |
+| `web/src/app` | The app: markets, co-sign, rewards, portfolio, recorded evidence. |
 | `web/src/ui` | Design tokens, shared components, icons and the self-hosted fonts. |
 | `web/src/art` | The provided artwork and the slot system that places it. |
-| `web/scripts` | `sync.mjs` (copies deployment data into the bundle and guards the evidence), `check-math.ts` (money-math assertions), `devkey.mjs` (dev wallet, see below). |
+| `web/scripts` | `sync.mjs` (copies deployment data into the bundle and guards the evidence), checks for money math, transaction activity and routes, plus `devkey.mjs` (dev wallet, see below). |
 | `docs` | Documentation. Start at the [index](README.md). |
 
 ## Everyday commands
@@ -37,7 +37,7 @@ forge test -vv                        # FOUNDRY_FUZZ_RUNS=2000 to match CI
 cd web
 npm ci
 npm run dev                           # http://localhost:5173 (site) and /app/
-npm run check                         # money-math assertions (shortfall, share, room, rounding)
+npm run check                         # money math, transaction-activity and route assertions
 npm run build                         # sync, type check, production bundle in web/dist
 npm run preview                       # serve the production bundle
 npm audit --omit=dev                  # dependency audit

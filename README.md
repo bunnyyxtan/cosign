@@ -1,6 +1,6 @@
 <h1 align="center">Cosign</h1>
 
-<p align="center"><em>Credit ratings with skin in the game.</em></p>
+<p align="center"><em>First-loss lending markets, backed by real capital.</em></p>
 
 <p align="center">
   First-loss cover for Morpho Blue lending markets on Mezo, posted by co-signers.<br>
@@ -12,23 +12,37 @@
 
 <p align="center"><img src="docs/screenshots/site-hero.jpg" alt="The Cosign website: first-loss cover in front of lenders" width="860"></p>
 
+## Judge guide
+
+| Start here | Evidence |
+|---|---|
+| Live product | [Website](https://cosign-eight.vercel.app/) · [App](https://cosign-eight.vercel.app/app/) |
+| Recorded first-loss proof | [Transaction-by-transaction evidence](docs/TESTNET_EVIDENCE.md) · [loss replay](https://cosign-eight.vercel.app/#replay) |
+| Two deployed markets and addresses | [Live deployments](#live-deployments) · [`31611.json`](contracts/deployments/31611.json) |
+| Smart contracts | [`contracts/src`](contracts/src) · [architecture](#architecture) |
+| Real-wallet evidence | [Rabby acceptance log](docs/WALLET_ACCEPTANCE.md) |
+| Reproduce checks | [Status and testing](#status-and-testing) · [development guide](docs/DEVELOPMENT.md) |
+| Risks and next work | [Security and limitations](#security-and-limitations) · [roadmap](#roadmap) |
+
 ## The problem
 
 Anyone can lend into an on-chain market, but a lender cannot tell how much of their own money the people who vouch for the market have at stake. When a borrower's collateral falls faster than it can be liquidated, the shortfall (bad debt) is shared among lenders, and the lenders find out after it happens.
 
 ## What Cosign does
 
-A **co-signer** posts MUSD as **junior cover** in a market. Anyone with MUSD can do this: **no veBTC is needed to post cover.** **Senior lenders** deposit MUSD behind that cover. If a liquidation leaves bad debt, the loss is charged to the cover first and reaches lenders only for the part that exceeds it. In return, co-signers earn a premium on the interest lenders pay and a share of the MEZO rewards the market attracts. veBTC is needed only for the optional part: **voting** MEZO rewards toward a market, backed by the cover you posted.
+A **co-signer** posts MUSD as **junior cover** in a market. Anyone with MUSD can do this: **no veBTC is needed to post cover.** **Senior lenders** deposit MUSD behind that cover. If a liquidation leaves bad debt, the loss is charged to available junior cover first and reaches senior capital only for the part that exceeds it. Senior deposits are accepted only up to a multiple of posted cover. Borrowers post MEZO collateral and borrow MUSD through Morpho Blue.
 
-This is different from a plain lending pool or an insurance fund because the protection is **capital that sits in front of the lender in the same vault**, in a fixed order, visible before you deposit:
+Borrowers pay interest. Each tranche earns the interest attributable to its own capital, and the junior tranche also receives a configured premium from the interest attributable to senior capital. Co-signers may also receive a share of self-funded MEZO rewards. veBTC is needed only for the optional voting mechanism: a vote can direct rewards toward a market, but its influence is capped by the voter's posted cover.
 
-| | Plain pool | Cosign market |
+Cosign's distinction is the explicit, onchain junior tranche in front of senior deposits: the contracts enforce the loss order, limit vault deposits by posted cover, and cap reward-voting influence by the capital backing it. Standard direct Morpho supply remains available, but does not receive this Cosign vault protection.
+
+| | Direct Morpho supply | Supply through a Cosign vault |
 |---|---|---|
-| Who takes a loss first | Every lender pro rata | The co-signer's cover |
-| What the lender can check | Nothing about who stands behind the market | Cover posted, cover ratio, lender room (`senior ≤ maxLeverage × cover`) |
-| What a co-signer risks | Nothing | Their cover, earning a premium for it |
+| Junior protection | None provided by Cosign | Posted MUSD cover absorbs recognised losses first |
+| Deposit constraint | Morpho's market rules apply | Senior deposits also satisfy `senior ≤ maxLeverage × cover` |
+| Reward voting | Outside Cosign | veBTC influence is capped by the voter's posted cover |
 
-**Vote = Bond = Credit limit.** A co-signer's veBTC vote (optional; cover itself needs no veBTC) for a market counts only up to the cover they have posted; cover sets how much lenders may deposit; and cover cannot leave without notice. Full detail, with a worked numeric example, is in [docs/PRODUCT.md](docs/PRODUCT.md).
+**Vote = bond = vault deposit capacity.** A co-signer's veBTC vote (optional; cover itself needs no veBTC) for a market counts only up to the cover they have posted; cover sets how much senior capital the Cosign vault may accept, not how much borrowers may take from Morpho; and cover cannot leave without notice. Full detail, with a worked numeric example, is in [docs/PRODUCT.md](docs/PRODUCT.md).
 
 ### How the three roles interact
 
@@ -40,7 +54,7 @@ This is different from a plain lending pool or an insurance fund because the pro
 
 ### Relation to Morpho Blue
 
-Cosign does not replace a lending protocol and does not modify one. Each market is an **unmodified [Morpho Blue](https://github.com/morpho-org/morpho-blue) market** with a Cosign vault as its only supplier. The vault keeps the senior/junior accounting, splits interest, and allocates losses; borrowers use Morpho directly.
+Cosign does not replace a lending protocol and does not modify one. Each market is an **unmodified [Morpho Blue](https://github.com/morpho-org/morpho-blue) market**. In the recorded deployment, the Cosign vault was the sole supplier to each market. Morpho permits direct third-party supply, but capital supplied outside a Cosign vault does not receive Cosign's junior-first loss protection. The vault keeps the senior/junior accounting, splits interest, and allocates losses; borrowers use Morpho directly.
 
 ### Why veBTC voting and self-funded MEZO incentives
 
@@ -73,7 +87,7 @@ The website replays a real testnet liquidation step by step from recorded transa
 | <img src="docs/screenshots/app-cosign-cover.jpg" alt="Co-sign page: your cover against market cover, with separate add and withdraw actions"> | <img src="docs/screenshots/app-rewards.jpg" alt="Rewards page: epoch, fund and distribute, claim"> |
 | <img src="docs/screenshots/app-markets.jpg" alt="Markets overview with two markets"> | <img src="docs/screenshots/app-evidence.jpg" alt="Recorded evidence page linking transactions"> |
 
-More captures (mobile, wallet dialog, portfolio) and how they were made: [docs/screenshots](docs/screenshots/README.md). The artwork in these images is provisional (low-resolution placeholders awaiting final files; see [docs/ASSET_REVIEW.md](docs/ASSET_REVIEW.md)).
+More captures (mobile, wallet dialog, portfolio) and how they were made: [docs/screenshots](docs/screenshots/README.md). The bundled artwork and these screenshots reflect the current Wave 1 production build; its asset notes are in [`web/src/art`](web/src/art/README.md).
 
 ## Real testnet deployment and evidence
 

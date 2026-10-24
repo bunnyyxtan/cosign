@@ -16,7 +16,7 @@ Cosign is an unaudited prototype on Mezo testnet. Start with the [project README
 | [`contracts/deployments/`](../contracts/deployments/README.md) | Addresses and recorded runs; what each file is |
 | [TESTNET_EVIDENCE.md](TESTNET_EVIDENCE.md) | The recorded v2 run: 35 transactions, 58 checks, with links |
 | [TESTNET_REPORT.md](TESTNET_REPORT.md) | Test results, findings, open items, security notes |
-| [test-results.txt](test-results.txt) | Output of the latest Foundry run (40 tests) |
+| [test-results.txt](test-results.txt) | Latest Foundry result: 51 passing, 0 failures and 1 intentionally skipped opt-in fork test |
 | [LOSS_SCANNER_TEST.md](LOSS_SCANNER_TEST.md) | Stress test of the app's loss-event scanner against RPC limits |
 
 ## Real-wallet acceptance
@@ -33,7 +33,6 @@ Cosign is an unaudited prototype on Mezo testnet. Start with the [project README
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Requirements, commands, layout, verification scripts, keys, Git rules |
 | [HOSTING.md](HOSTING.md) | Hosting on Vercel (live at cosign-eight.vercel.app), headers, what has and has not been checked |
 | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Design tokens, type, motion and components |
-| [ASSET_REVIEW.md](ASSET_REVIEW.md) | How the supplied artwork was reviewed and placed |
 | [screenshots/](screenshots/README.md) | The images used in the README and how they were captured |
 
 ## Policy
@@ -52,5 +51,6 @@ Superseded records, kept because they are evidence of earlier work, not current 
 |---|---|
 | [archive/TESTNET_REPORT_v1.md](archive/TESTNET_REPORT_v1.md) | Report for the first (v1) deployment |
 | [archive/TESTNET_EVIDENCE_v1.md](archive/TESTNET_EVIDENCE_v1.md) | Evidence for the v1 run (45 transactions, 39 checks) |
+| [archive/ASSET_REVIEW_V1.md](archive/ASSET_REVIEW_V1.md) | Historical review and replacement brief for the original Wave 1 concept-board crops; retained for provenance, not an active delivery requirement |
 
 The v1 addresses and run data are in `contracts/deployments/` (`31611-v1.json`, `demo-run-v1.json`, `migration-v1.json`).

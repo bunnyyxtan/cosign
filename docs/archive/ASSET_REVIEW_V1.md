@@ -1,4 +1,6 @@
-# Visual asset review: Cosign Original Visual Assets V1
+# Archived visual asset review: Cosign Original Visual Assets V1
+
+> Historical production note, retained for provenance. The six crops described below were accepted as the Wave 1 production artwork and remain in use. The replacement specifications document the original review process; they are not an outstanding submission requirement.
 
 Reviewed at 100% before integration: sharpness, crop seams, embedded text, composition, and fit at 390, 768, 1,440 and 1,920 px.
 

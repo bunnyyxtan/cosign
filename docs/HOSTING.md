@@ -15,11 +15,14 @@ The app is a static Vite build. It reads the Mezo testnet RPC from each visitor'
 
 ## Checked
 
-- The CI jobs, reproduced from a clean clone: web (install, math checks, production build, `npm audit --omit=dev` with 0 vulnerabilities) and contracts (build and all 40 tests at 2,000 fuzz runs). They also run on every push to `main`.
-- Served exactly as Vercel will serve it (the headers from `vercel.json`, which match `web/public/_headers`), every page was loaded at 1440 px and 390 px, plain and with a read-only stand-in wallet connected: website, Markets, Bold, Steady, Recorded evidence, Co-sign, Rewards, Positions. Result, 18 of 18 loads: no CSP violation, no console error, no failed request, no horizontal overflow, the testnet and unaudited warning present, no mock or dev-wallet text. (Scripted run on 23 October 2026, local server, live testnet RPC.)
+- The CI jobs, reproduced from a clean clone: web (install, checks, production build, `npm audit --omit=dev` with 0 vulnerabilities) and contracts (build, 51 passing tests and 1 intentionally skipped opt-in fork test at 2,000 fuzz runs). They also run on every push to `main`.
+- Served exactly as Vercel will serve it (the headers from `vercel.json`, which match `web/public/_headers`), every page was loaded at 1440 px and 390 px, plain and with a read-only stand-in wallet connected: website, Markets, Bold, Steady, Recorded evidence, Co-sign, Rewards, Portfolio. Result, 18 of 18 loads: no CSP violation, no console error, no failed request, no horizontal overflow, the testnet and unaudited warning present, no mock or dev-wallet text. (Scripted run on 23 October 2026, local server, live testnet RPC.)
 - The production bundle contains no dev-wallet code and none of the local test key values.
 - The hosted site, 23 October 2026: it serves the same build as `main` at `44414ce` (identical asset hashes); every response carries the policy above plus HSTS; `/app` and `/app/` both open the app; unknown paths return 404. A scripted browser walk of the website and every app page, desktop and phone, plain and with a read-only stand-in wallet (20 loads) found no policy violation, console error or failed request, no horizontal overflow, live reads from `rpc.test.mezo.org` on every app page, and working explorer links from the loss replay.
-- Not yet checked: a real browser wallet (Rabby) on the hosted domain. See [WALLET_ACCEPTANCE.md](WALLET_ACCEPTANCE.md).
+- **Real Rabby-signed transactions:** completed on the hosted app for cover, lending and withdrawals, the full borrow lifecycle, voting, funding, distributing and claiming rewards, and activation of the second market. The acceptance result remains **PARTIAL** overall: 13 rows PASS, 5 PARTIAL and 23 NOT RUN. Every supported claim and transaction hash is in [WALLET_ACCEPTANCE.md](WALLET_ACCEPTANCE.md).
+- **Read-only stand-in wallet checks:** the scripted browser walks above verify routes, reads, layout and policy behaviour; they do not count as wallet-signing evidence.
+- **Local-fork simulations:** development rehearsals are labelled as simulations and do not count as real-wallet evidence.
+- **Still untested or incomplete:** OKX Wallet, prompt rejection, wrong-network and network-add scenarios, a second wallet and a first-time independent user, plus the PARTIAL rows listed in [WALLET_ACCEPTANCE.md](WALLET_ACCEPTANCE.md). No PARTIAL or NOT RUN row is treated as a pass.
 
 ## Vercel
 
@@ -32,7 +35,7 @@ Deploy from `main` only (Production Branch `main`). The project needs no environ
 
 Build command `cd web && npm ci && npm run build`, output directory `web/dist`, root directory the repository root. Headers come from `web/public/_headers`. Use Node 22 or 24 to match CI.
 
-## After the first deploy
+## After a deploy
 
 - Open the URL in a clean browser profile with no wallet: the first page and the loss replay must work.
 - Check the browser console for blocked requests (the policy lists exactly what is allowed).
